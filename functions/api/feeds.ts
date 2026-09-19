@@ -5,7 +5,7 @@ type Env = { DB: D1Database };
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-user-id",
 };
 
 const json = (data: any, status = 200) =>
@@ -59,12 +59,8 @@ const isHttpUrl = (v: any) => {
 
 const parseJsonArrayUrls = (raw: any, maxItems = 20): string[] => {
   if (Array.isArray(raw)) {
-    return raw
-      .map(cleanUrl)
-      .filter((x) => isHttpUrl(x))
-      .slice(0, maxItems);
+    return raw.map(cleanUrl).filter((x) => isHttpUrl(x)).slice(0, maxItems);
   }
-
   if (typeof raw === "string") {
     const s = raw.trim();
     if (!s) return [];
@@ -73,10 +69,7 @@ const parseJsonArrayUrls = (raw: any, maxItems = 20): string[] => {
       try {
         const parsed = JSON.parse(s);
         if (Array.isArray(parsed)) {
-          return parsed
-            .map(cleanUrl)
-            .filter((x) => isHttpUrl(x))
-            .slice(0, maxItems);
+          return parsed.map(cleanUrl).filter((x) => isHttpUrl(x)).slice(0, maxItems);
         }
         return [];
       } catch {}
@@ -84,7 +77,6 @@ const parseJsonArrayUrls = (raw: any, maxItems = 20): string[] => {
     const one = cleanUrl(s);
     return one && isHttpUrl(one) ? [one] : [];
   }
-
   return [];
 };
 
@@ -95,7 +87,6 @@ const parseJsonArrayStrings = (raw: any, maxItems = 20): string[] => {
       .filter((x) => x && x !== "null" && x !== "undefined")
       .slice(0, maxItems);
   }
-
   if (typeof raw === "string") {
     const s = raw.trim();
     if (!s) return [];
@@ -115,7 +106,6 @@ const parseJsonArrayStrings = (raw: any, maxItems = 20): string[] => {
     const one = String(s).trim();
     return one ? [one] : [];
   }
-
   return [];
 };
 
@@ -143,7 +133,6 @@ const guessTypeFromUrl = (url: string) => {
 
 const parseMediaMeta = (raw: any, maxItems = 20) => {
   let arr: any[] = [];
-
   if (Array.isArray(raw)) {
     arr = raw;
   } else if (typeof raw === "string") {
@@ -155,7 +144,6 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
       } catch {}
     }
   }
-
   return arr
     .slice(0, maxItems)
     .map((m: any) => {
@@ -166,15 +154,11 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
       const full = cleanUrl(
         m?.full || m?.full_url || m?.feed || m?.feed_url || m?.url || m?.thumb
       );
-      const type = String(m?.type || "")
-        .trim()
-        .toLowerCase();
-
+      const type = String(m?.type || "").trim().toLowerCase();
       const finalType =
         type === "image" || type === "video" || type === "audio"
           ? type
           : guessTypeFromUrl(full || feed || thumb);
-
       const validFeed = isHttpUrl(feed) ? feed : null;
       const validFull = isHttpUrl(full) ? full : null;
       const validThumb = isHttpUrl(thumb)
@@ -182,7 +166,6 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
         : finalType === "image"
         ? validFeed || validFull
         : null;
-
       return {
         thumb: validThumb,
         feed: validFeed,
@@ -195,7 +178,6 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
 
 const normalizeMedia = (row: any) => {
   const meta = parseMediaMeta(row?.media_meta);
-
   if (meta.length > 0) {
     const rawImageItems = meta.filter(
       (m: any) =>
@@ -203,38 +185,29 @@ const normalizeMedia = (row: any) => {
         guessTypeFromUrl(m.feed || m.full || m.thumb) === "image"
     );
     const imageItems = rawImageItems.length > 0 ? rawImageItems : meta;
-
     return {
       media: meta,
       media_url: meta[0]?.feed || meta[0]?.full || meta[0]?.thumb || null,
-      media_urls: meta
-        .map((m: any) => m.feed || m.full || m.thumb)
-        .filter(Boolean),
+      media_urls: meta.map((m: any) => m.feed || m.full || m.thumb).filter(Boolean),
       media_types: meta.map(
         (m: any) => m.type || guessTypeFromUrl(m.feed || m.full || m.thumb)
       ),
-      images: imageItems
-        .map((m: any) => m.feed || m.full || m.thumb)
-        .filter(Boolean),
+      images: imageItems.map((m: any) => m.feed || m.full || m.thumb).filter(Boolean),
       thumb_url: meta[0]?.thumb || null,
       feed_url: meta[0]?.feed || null,
       full_url: meta[0]?.full || null,
     };
   }
-
   const single = cleanUrl(row?.media_url);
   const urls = parseJsonArrayUrls(row?.media_urls);
   const rawImages = parseJsonArrayUrls(row?.images);
   const combinedUrls = urls.length ? urls : rawImages;
   const outUrls = combinedUrls.length ? combinedUrls : single ? [single] : [];
-
   const types = parseJsonArrayStrings(row?.media_types);
   let outTypes = types.length ? types : [];
-
   if (outUrls.length && outTypes.length !== outUrls.length) {
     outTypes = outUrls.map(guessTypeFromUrl);
   }
-
   const media = outUrls.map((url, i) => {
     const type = outTypes[i] || guessTypeFromUrl(url);
     return {
@@ -244,7 +217,6 @@ const normalizeMedia = (row: any) => {
       type,
     };
   });
-
   return {
     media,
     media_url: single || outUrls[0] || null,
@@ -257,7 +229,6 @@ const normalizeMedia = (row: any) => {
   };
 };
 
-// Deterministic seeded RNG + shuffle
 const mulberry32 = (seed: number) => {
   return function () {
     let t = (seed += 0x6d2b79f5);
@@ -282,8 +253,9 @@ export const onRequestOptions: PagesFunction = async () =>
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    if (!env.DB)
+    if (!env.DB) {
       return json({ success: false, error: "DB binding missing (DB)" }, 500);
+    }
 
     const url = new URL(request.url);
 
@@ -303,7 +275,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const exploreCount = Math.max(0, limit - freshCount);
 
     // ============================================================
-    // 1) POSTS (videos excluded)
+    // 1) POSTS
     // ============================================================
     const wherePosts: string[] = [];
     const bindsPosts: any[] = [];
@@ -311,6 +283,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     wherePosts.push(
       `(p.visibility IS NULL OR p.visibility = 'public' OR p.visibility = '' OR p.visibility = 'Public')`
     );
+
+    // ✅ exclude deleted posts
+    wherePosts.push(`COALESCE(p.is_deleted, 0) = 0`);
 
     wherePosts.push(`(p.content IS NULL OR (
       p.content NOT LIKE '%"post_type":"product"%'
@@ -338,15 +313,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       wherePosts.push(`p.created_at < ?`);
       bindsPosts.push(cursor.trim());
     }
-
     if (seen.length > 0) {
       wherePosts.push(`p.id NOT IN (${seen.map(() => "?").join(",")})`);
       bindsPosts.push(...seen);
     }
 
-    const wherePostsSql = wherePosts.length
-      ? `WHERE ${wherePosts.join(" AND ")}`
-      : "";
+    const wherePostsSql = wherePosts.length ? `WHERE ${wherePosts.join(" AND ")}` : "";
 
     const baseSelectPosts = `
       SELECT
@@ -357,6 +329,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('post:' || CAST(p.id AS TEXT)) AS feed_key,
 
         p.created_at AS created_at,
+        p.updated_at AS updated_at,
 
         p.id AS post_id,
         NULL AS reel_id,
@@ -366,6 +339,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         NULL AS product_id2,
 
         p.user_id AS user_id,
+        p.user_id AS owner_id,
+        'user_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -409,7 +384,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ELSE p.media_meta
         END AS media_meta,
 
-        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND COALESCE(pc.is_deleted,0) = 0) AS comments_count,
 
         (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = p.id) AS reactions_count,
         (SELECT pr.type FROM post_reactions pr WHERE pr.post_id = p.id AND pr.user_id = ? LIMIT 1) AS my_reaction,
@@ -463,39 +438,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
-        NULL AS caption,
-        NULL AS song_name,
-        NULL AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
-        NULL AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        NULL AS video_url, NULL AS caption, NULL AS song_name,
+        NULL AS audio_url, 0 AS audio_start, 0 AS audio_end,
+        NULL AS location, NULL AS sound_key, NULL AS sound_id,
 
-        NULL AS song_title,
-        NULL AS song_artist_name,
-        NULL AS song_album_name,
-        NULL AS song_cover_image_url,
-        NULL AS song_duration_seconds,
-        NULL AS song_genre,
-        NULL AS song_likes_count,
-        NULL AS song_plays_count,
+        NULL AS song_title, NULL AS song_artist_name, NULL AS song_album_name,
+        NULL AS song_cover_image_url, NULL AS song_duration_seconds,
+        NULL AS song_genre, NULL AS song_likes_count, NULL AS song_plays_count,
 
-        NULL AS event_date,
-        NULL AS event_description,
-        NULL AS attending_count,
-        NULL AS interested_count,
+        NULL AS event_date, NULL AS event_description,
+        NULL AS attending_count, NULL AS interested_count,
         NULL AS my_rsvp_status,
 
-        NULL AS type,
-        NULL AS post_type,
-        NULL AS kind,
-        NULL AS meta,
+        NULL AS type, NULL AS post_type, NULL AS kind, NULL AS meta,
 
-        NULL AS group_id,
-        NULL AS group_name,
-        NULL AS group_image
+        NULL AS group_id, NULL AS group_name, NULL AS group_image
       FROM posts p
       LEFT JOIN users u ON u.id = p.user_id
     `;
@@ -506,6 +463,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const whereSongs: string[] = [];
     const bindsSongs: any[] = [];
 
+    // ✅ exclude deleted songs
+    whereSongs.push(`COALESCE(s.is_deleted, 0) = 0`);
+
     if (cursor && cursor.trim()) {
       whereSongs.push(`s.created_at < ?`);
       bindsSongs.push(cursor.trim());
@@ -515,9 +475,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       bindsSongs.push(...seen);
     }
 
-    const whereSongsSql = whereSongs.length
-      ? `WHERE ${whereSongs.join(" AND ")}`
-      : "";
+    const whereSongsSql = whereSongs.length ? `WHERE ${whereSongs.join(" AND ")}` : "";
 
     const baseSelectSongs = `
       SELECT
@@ -528,15 +486,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('song:' || CAST(s.id AS TEXT)) AS feed_key,
 
         s.created_at AS created_at,
+        NULL AS updated_at,
 
-        NULL AS post_id,
-        NULL AS reel_id,
+        NULL AS post_id, NULL AS reel_id,
         s.id AS song_id2,
-        NULL AS event_id,
-        NULL AS group_post_id,
-        NULL AS product_id2,
+        NULL AS event_id, NULL AS group_post_id, NULL AS product_id2,
 
         s.uploader_id AS user_id,
+        s.uploader_id AS owner_id,
+        'uploader_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -556,16 +514,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ) AS content,
 
         'public' AS visibility,
-        0 AS views,
-        0 AS shares,
+        0 AS views, 0 AS shares,
 
-        NULL AS media_url,
-        NULL AS media_type,
-        NULL AS media_urls,
-        NULL AS media_types,
-        NULL AS media_meta,
+        NULL AS media_url, NULL AS media_type,
+        NULL AS media_urls, NULL AS media_types, NULL AS media_meta,
 
-        (SELECT COUNT(*) FROM song_comments sc WHERE sc.song_id = s.id) AS comments_count,
+        (SELECT COUNT(*) FROM song_comments sc WHERE sc.song_id = s.id AND COALESCE(sc.is_deleted,0) = 0) AS comments_count,
 
         (SELECT COUNT(*) FROM song_reactions sr WHERE sr.song_id = s.id) AS reactions_count,
         (SELECT sr.type FROM song_reactions sr WHERE sr.song_id = s.id AND sr.user_id = ? LIMIT 1) AS my_reaction,
@@ -619,15 +573,11 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
-        NULL AS caption,
+        NULL AS video_url, NULL AS caption,
         NULL AS song_name,
         s.audio_url AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
-        NULL AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        0 AS audio_start, 0 AS audio_end,
+        NULL AS location, NULL AS sound_key, NULL AS sound_id,
 
         s.title AS song_title,
         s.artist_name AS song_artist_name,
@@ -643,10 +593,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           (SELECT COUNT(*) FROM song_plays sp WHERE sp.song_id = s.id)
         ) AS song_plays_count,
 
-        NULL AS event_date,
-        NULL AS event_description,
-        NULL AS attending_count,
-        NULL AS interested_count,
+        NULL AS event_date, NULL AS event_description,
+        NULL AS attending_count, NULL AS interested_count,
         NULL AS my_rsvp_status,
 
         'music' AS type,
@@ -668,15 +616,13 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           )
         ) AS meta,
 
-        NULL AS group_id,
-        NULL AS group_name,
-        NULL AS group_image
+        NULL AS group_id, NULL AS group_name, NULL AS group_image
       FROM songs s
       LEFT JOIN users u ON u.id = s.uploader_id
     `;
 
     // ============================================================
-    // 4) EVENTS
+    // 3) EVENTS
     // ============================================================
     const whereEvents: string[] = [];
     const bindsEvents: any[] = [];
@@ -684,6 +630,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     whereEvents.push(
       `(e.visibility IS NULL OR e.visibility = 'worldwide' OR e.visibility = 'targeted')`
     );
+
+    // ✅ exclude deleted events
+    whereEvents.push(`COALESCE(e.is_deleted, 0) = 0`);
 
     if (cursor && cursor.trim()) {
       whereEvents.push(`e.created_at < ?`);
@@ -694,9 +643,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       bindsEvents.push(...seen);
     }
 
-    const whereEventsSql = whereEvents.length
-      ? `WHERE ${whereEvents.join(" AND ")}`
-      : "";
+    const whereEventsSql = whereEvents.length ? `WHERE ${whereEvents.join(" AND ")}` : "";
 
     const baseSelectEvents = `
       SELECT
@@ -707,15 +654,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('event:' || CAST(e.id AS TEXT)) AS feed_key,
 
         e.created_at AS created_at,
+        e.updated_at AS updated_at,
 
-        NULL AS post_id,
-        NULL AS reel_id,
-        NULL AS song_id2,
+        NULL AS post_id, NULL AS reel_id, NULL AS song_id2,
         e.id AS event_id,
-        NULL AS group_post_id,
-        NULL AS product_id2,
+        NULL AS group_post_id, NULL AS product_id2,
 
         e.creator_id AS user_id,
+        e.creator_id AS owner_id,
+        'creator_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -810,24 +757,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
-        NULL AS caption,
-        NULL AS song_name,
-        NULL AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
+        NULL AS video_url, NULL AS caption, NULL AS song_name, NULL AS audio_url,
+        0 AS audio_start, 0 AS audio_end,
         e.location AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        NULL AS sound_key, NULL AS sound_id,
 
-        NULL AS song_title,
-        NULL AS song_artist_name,
-        NULL AS song_album_name,
-        NULL AS song_cover_image_url,
-        NULL AS song_duration_seconds,
-        NULL AS song_genre,
-        NULL AS song_likes_count,
-        NULL AS song_plays_count,
+        NULL AS song_title, NULL AS song_artist_name, NULL AS song_album_name,
+        NULL AS song_cover_image_url, NULL AS song_duration_seconds,
+        NULL AS song_genre, NULL AS song_likes_count, NULL AS song_plays_count,
 
         e.event_date AS event_date,
         e.description AS event_description,
@@ -861,20 +798,19 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           )
         ) AS meta,
 
-        NULL AS group_id,
-        NULL AS group_name,
-        NULL AS group_image
+        NULL AS group_id, NULL AS group_name, NULL AS group_image
       FROM events e
       LEFT JOIN users u ON u.id = e.creator_id
     `;
 
     // ============================================================
-    // 5) GROUP POSTS (videos excluded)
+    // 4) GROUP POSTS
     // ============================================================
     const whereGroupPosts: string[] = [];
     const bindsGroupPosts: any[] = [];
 
     whereGroupPosts.push(`(gp.visibility IS NULL OR gp.visibility = 'public')`);
+    whereGroupPosts.push(`COALESCE(gp.is_deleted, 0) = 0`);
 
     whereGroupPosts.push(`(
       COALESCE(LOWER(gp.media_url), '') NOT LIKE '%.mp4%'
@@ -911,15 +847,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('group_post:' || CAST(gp.id AS TEXT)) AS feed_key,
 
         gp.created_at AS created_at,
+        NULL AS updated_at,
 
-        NULL AS post_id,
-        NULL AS reel_id,
-        NULL AS song_id2,
-        NULL AS event_id,
+        NULL AS post_id, NULL AS reel_id, NULL AS song_id2, NULL AS event_id,
         gp.id AS group_post_id,
         NULL AS product_id2,
 
         gp.user_id AS user_id,
+        gp.user_id AS owner_id,
+        'user_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -940,8 +876,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
         gp.content AS content,
         gp.visibility AS visibility,
-        0 AS views,
-        0 AS shares,
+        0 AS views, 0 AS shares,
 
         CASE
           WHEN gp.media_url LIKE 'data:%' THEN NULL
@@ -965,10 +900,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ELSE gp.media_urls
         END AS media_urls,
 
-        NULL AS media_types,
-        NULL AS media_meta,
+        NULL AS media_types, NULL AS media_meta,
 
-        (SELECT COUNT(*) FROM group_post_comments gpc WHERE gpc.group_post_id = gp.id) AS comments_count,
+        (SELECT COUNT(*) FROM group_post_comments gpc WHERE gpc.group_post_id = gp.id AND COALESCE(gpc.is_deleted,0) = 0) AS comments_count,
 
         (SELECT COUNT(*) FROM group_post_reactions gpr WHERE gpr.group_post_id = gp.id) AS reactions_count,
         (SELECT gpr.type FROM group_post_reactions gpr WHERE gpr.group_post_id = gp.id AND gpr.user_id = ? LIMIT 1) AS my_reaction,
@@ -1022,46 +956,31 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
+        NULL AS video_url, NULL AS caption, NULL AS song_name, NULL AS audio_url,
+        0 AS audio_start, 0 AS audio_end,
+        NULL AS location, NULL AS sound_key, NULL AS sound_id,
 
-        NULL AS caption,
-        NULL AS song_name,
-        NULL AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
-        NULL AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        NULL AS song_title, NULL AS song_artist_name, NULL AS song_album_name,
+        NULL AS song_cover_image_url, NULL AS song_duration_seconds,
+        NULL AS song_genre, NULL AS song_likes_count, NULL AS song_plays_count,
 
-        NULL AS song_title,
-        NULL AS song_artist_name,
-        NULL AS song_album_name,
-        NULL AS song_cover_image_url,
-        NULL AS song_duration_seconds,
-        NULL AS song_genre,
-        NULL AS song_likes_count,
-        NULL AS song_plays_count,
-
-        NULL AS event_date,
-        NULL AS event_description,
-        NULL AS attending_count,
-        NULL AS interested_count,
+        NULL AS event_date, NULL AS event_description,
+        NULL AS attending_count, NULL AS interested_count,
         NULL AS my_rsvp_status,
 
-        NULL AS type,
-        NULL AS post_type,
-        NULL AS kind,
-        NULL AS meta
+        NULL AS type, NULL AS post_type, NULL AS kind, NULL AS meta
       FROM group_posts gp
       LEFT JOIN users u ON u.id = gp.user_id
       LEFT JOIN groups g ON g.id = gp.group_id
     `;
 
     // ============================================================
-    // 6) PRODUCTS feed-injection
+    // 5) PRODUCTS feed-injection
     // ============================================================
     const whereProductsFeed: string[] = [];
     const bindsProductsFeed: any[] = [];
+
+    whereProductsFeed.push(`COALESCE(pr.is_deleted, 0) = 0`);
 
     if (cursor && cursor.trim()) {
       whereProductsFeed.push(`pr.created_at < ?`);
@@ -1085,15 +1004,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('product:' || CAST(pr.id AS TEXT)) AS feed_key,
 
         pr.created_at AS created_at,
+        NULL AS updated_at,
 
-        NULL AS post_id,
-        NULL AS reel_id,
-        NULL AS song_id2,
-        NULL AS event_id,
+        NULL AS post_id, NULL AS reel_id, NULL AS song_id2, NULL AS event_id,
         NULL AS group_post_id,
         pr.id AS product_id2,
 
         pr.seller_id AS user_id,
+        pr.seller_id AS owner_id,
+        'seller_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -1106,17 +1025,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
         pr.title AS content,
         'public' AS visibility,
-        0 AS views,
-        0 AS shares,
+        0 AS views, 0 AS shares,
 
-        NULL AS media_url,
-        NULL AS media_type,
+        NULL AS media_url, NULL AS media_type,
 
         pr.images AS media_urls,
-        NULL AS media_types,
-        NULL AS media_meta,
+        NULL AS media_types, NULL AS media_meta,
 
-        (SELECT COUNT(*) FROM product_comments pc WHERE pc.product_id = pr.id) AS comments_count,
+        (SELECT COUNT(*) FROM product_comments pc WHERE pc.product_id = pr.id AND COALESCE(pc.is_deleted,0) = 0) AS comments_count,
 
         (SELECT COUNT(*) FROM product_reactions prr WHERE prr.product_id = pr.id) AS reactions_count,
         (SELECT prr.type FROM product_reactions prr WHERE prr.product_id = pr.id AND prr.user_id = ? LIMIT 1) AS my_reaction,
@@ -1170,29 +1086,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
-        NULL AS caption,
-        NULL AS song_name,
-        NULL AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
-        NULL AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        NULL AS video_url, NULL AS caption, NULL AS song_name, NULL AS audio_url,
+        0 AS audio_start, 0 AS audio_end,
+        NULL AS location, NULL AS sound_key, NULL AS sound_id,
 
-        NULL AS song_title,
-        NULL AS song_artist_name,
-        NULL AS song_album_name,
-        NULL AS song_cover_image_url,
-        NULL AS song_duration_seconds,
-        NULL AS song_genre,
-        NULL AS song_likes_count,
-        NULL AS song_plays_count,
+        NULL AS song_title, NULL AS song_artist_name, NULL AS song_album_name,
+        NULL AS song_cover_image_url, NULL AS song_duration_seconds,
+        NULL AS song_genre, NULL AS song_likes_count, NULL AS song_plays_count,
 
-        NULL AS event_date,
-        NULL AS event_description,
-        NULL AS attending_count,
-        NULL AS interested_count,
+        NULL AS event_date, NULL AS event_description,
+        NULL AS attending_count, NULL AS interested_count,
         NULL AS my_rsvp_status,
 
         'marketplace' AS type,
@@ -1205,18 +1108,18 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           'marketplace', json_object('id', pr.id)
         ) AS meta,
 
-        NULL AS group_id,
-        NULL AS group_name,
-        NULL AS group_image
+        NULL AS group_id, NULL AS group_name, NULL AS group_image
       FROM products pr
       LEFT JOIN users u ON u.id = pr.seller_id
     `;
 
     // ============================================================
-    // 7) PRODUCTS (separate list)
+    // 6) PRODUCTS (separate list)
     // ============================================================
     const whereProducts: string[] = [];
     const bindsProducts: any[] = [];
+
+    whereProducts.push(`COALESCE(pr.is_deleted, 0) = 0`);
 
     if (cursor && cursor.trim()) {
       whereProducts.push(`pr.created_at < ?`);
@@ -1233,19 +1136,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
 
     const selectProducts = `
       SELECT
-        pr.id,
-        pr.seller_id,
-        pr.title,
-        pr.category,
-        pr.description,
-        pr.country,
-        pr.address,
-        pr.main_price,
-        pr.discount_price,
-        pr.quantity,
-        pr.phone_number,
-        pr.images,
-        pr.created_at
+        pr.id, pr.seller_id, pr.title, pr.category, pr.description,
+        pr.country, pr.address, pr.main_price, pr.discount_price,
+        pr.quantity, pr.phone_number, pr.images, pr.created_at
       FROM products pr
       ${whereProductsSql}
       ORDER BY pr.created_at DESC
@@ -1253,13 +1146,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     `;
 
     // ============================================================
-    // 8) BOOSTED POSTS FROM ADS TABLE (videos excluded)
+    // 7) BOOSTED POSTS FROM ADS
     // ============================================================
     const whereAds: string[] = [];
     const bindsAds: any[] = [];
 
     whereAds.push(`a.status = 'active'`);
     whereAds.push(`a.post_id IS NOT NULL`);
+    whereAds.push(`COALESCE(p.is_deleted, 0) = 0`);
 
     whereAds.push(`(
       COALESCE(LOWER(p.media_type), '') NOT LIKE '%video%'
@@ -1280,15 +1174,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       whereAds.push(`a.created_at < ?`);
       bindsAds.push(cursor.trim());
     }
-
     if (seen.length > 0) {
       whereAds.push(`a.id NOT IN (${seen.map(() => "?").join(",")})`);
       bindsAds.push(...seen);
     }
 
-    const whereAdsSql = whereAds.length
-      ? `WHERE ${whereAds.join(" AND ")}`
-      : "";
+    const whereAdsSql = whereAds.length ? `WHERE ${whereAds.join(" AND ")}` : "";
 
     const baseSelectAds = `
       SELECT
@@ -1299,15 +1190,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         ('ad_post:' || CAST(a.id AS TEXT) || ':' || CAST(p.id AS TEXT)) AS feed_key,
 
         COALESCE(a.created_at, p.created_at) AS created_at,
+        p.updated_at AS updated_at,
 
-        p.id AS post_id,
-        NULL AS reel_id,
-        NULL AS song_id2,
-        NULL AS event_id,
-        NULL AS group_post_id,
-        NULL AS product_id2,
+        p.id AS post_id, NULL AS reel_id, NULL AS song_id2, NULL AS event_id,
+        NULL AS group_post_id, NULL AS product_id2,
 
         p.user_id AS user_id,
+        p.user_id AS owner_id,
+        'user_id' AS owner_field,
         COALESCE(u.username, 'user') AS username,
         COALESCE(u.name, u.username, 'User') AS name,
         CASE
@@ -1351,7 +1241,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ELSE p.media_meta
         END AS media_meta,
 
-        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id) AS comments_count,
+        (SELECT COUNT(*) FROM post_comments pc WHERE pc.post_id = p.id AND COALESCE(pc.is_deleted,0) = 0) AS comments_count,
 
         (SELECT COUNT(*) FROM post_reactions pr WHERE pr.post_id = p.id) AS reactions_count,
         (SELECT pr.type FROM post_reactions pr WHERE pr.post_id = p.id AND pr.user_id = ? LIMIT 1) AS my_reaction,
@@ -1405,29 +1295,16 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           ) t
         ) AS reactions_by_type,
 
-        NULL AS video_url,
-        NULL AS caption,
-        NULL AS song_name,
-        NULL AS audio_url,
-        0 AS audio_start,
-        0 AS audio_end,
-        NULL AS location,
-        NULL AS sound_key,
-        NULL AS sound_id,
+        NULL AS video_url, NULL AS caption, NULL AS song_name, NULL AS audio_url,
+        0 AS audio_start, 0 AS audio_end,
+        NULL AS location, NULL AS sound_key, NULL AS sound_id,
 
-        NULL AS song_title,
-        NULL AS song_artist_name,
-        NULL AS song_album_name,
-        NULL AS song_cover_image_url,
-        NULL AS song_duration_seconds,
-        NULL AS song_genre,
-        NULL AS song_likes_count,
-        NULL AS song_plays_count,
+        NULL AS song_title, NULL AS song_artist_name, NULL AS song_album_name,
+        NULL AS song_cover_image_url, NULL AS song_duration_seconds,
+        NULL AS song_genre, NULL AS song_likes_count, NULL AS song_plays_count,
 
-        NULL AS event_date,
-        NULL AS event_description,
-        NULL AS attending_count,
-        NULL AS interested_count,
+        NULL AS event_date, NULL AS event_description,
+        NULL AS attending_count, NULL AS interested_count,
         NULL AS my_rsvp_status,
 
         'post' AS type,
@@ -1451,9 +1328,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           )
         ) AS meta,
 
-        NULL AS group_id,
-        NULL AS group_name,
-        NULL AS group_image
+        NULL AS group_id, NULL AS group_name, NULL AS group_image
       FROM ads a
       JOIN posts p ON p.id = a.post_id
       LEFT JOIN users u ON u.id = p.user_id
@@ -1512,9 +1387,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     )
       .bind(reactionUserId, ...bindsAds, Math.min(3, freshCount))
       .all();
-    const freshAds = Array.isArray(freshAdsRes?.results)
-      ? freshAdsRes.results
-      : [];
+    const freshAds = Array.isArray(freshAdsRes?.results) ? freshAdsRes.results : [];
 
     const freshProductsRes = await env.DB.prepare(selectProducts)
       .bind(...bindsProducts, freshCount)
@@ -1540,27 +1413,21 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       )
         .bind(reactionUserId, ...bindsPosts, exploreCount)
         .all();
-      explorePosts = Array.isArray(explorePostsRes?.results)
-        ? explorePostsRes.results
-        : [];
+      explorePosts = Array.isArray(explorePostsRes?.results) ? explorePostsRes.results : [];
 
       const exploreSongsRes = await env.DB.prepare(
         `${baseSelectSongs} ${whereSongsSql} ORDER BY RANDOM() LIMIT ?`
       )
         .bind(reactionUserId, ...bindsSongs, exploreCount)
         .all();
-      exploreSongs = Array.isArray(exploreSongsRes?.results)
-        ? exploreSongsRes.results
-        : [];
+      exploreSongs = Array.isArray(exploreSongsRes?.results) ? exploreSongsRes.results : [];
 
       const exploreEventsRes = await env.DB.prepare(
         `${baseSelectEvents} ${whereEventsSql} ORDER BY RANDOM() LIMIT ?`
       )
         .bind(reactionUserId, reactionUserId, reactionUserId, ...bindsEvents, exploreCount)
         .all();
-      exploreEvents = Array.isArray(exploreEventsRes?.results)
-        ? exploreEventsRes.results
-        : [];
+      exploreEvents = Array.isArray(exploreEventsRes?.results) ? exploreEventsRes.results : [];
 
       const exploreGroupPostsRes = await env.DB.prepare(
         `${baseSelectGroupPosts} ${whereGroupPostsSql} ORDER BY RANDOM() LIMIT ?`
@@ -1585,9 +1452,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       )
         .bind(reactionUserId, ...bindsAds, Math.min(2, exploreCount))
         .all();
-      exploreAds = Array.isArray(exploreAdsRes?.results)
-        ? exploreAdsRes.results
-        : [];
+      exploreAds = Array.isArray(exploreAdsRes?.results) ? exploreAdsRes.results : [];
 
       const exploreProductsRes = await env.DB.prepare(
         `
@@ -1676,7 +1541,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     }));
 
     // ============================================================
-    // Merge + dedup PRODUCTS (separate list)
+    // Merge + dedup PRODUCTS
     // ============================================================
     const productMap = new Map<number, any>();
     for (const row of [...freshProducts, ...exploreProducts]) {
@@ -1694,7 +1559,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     const products = Array.from(productMap.values());
 
     // ============================================================
-    // hasMore (posts-only simple)
+    // hasMore
     // ============================================================
     let hasMore = false;
     if (nextCursor) {
@@ -1703,6 +1568,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         FROM posts p
         WHERE
           (p.visibility IS NULL OR p.visibility = 'public' OR p.visibility = '' OR p.visibility = 'Public')
+          AND COALESCE(p.is_deleted, 0) = 0
           AND (p.content IS NULL OR (
             p.content NOT LIKE '%"post_type":"product"%'
             AND p.content NOT LIKE '%"kind":"product"%'
