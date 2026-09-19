@@ -27,8 +27,12 @@ export const onRequestDelete: PagesFunction<Env> = async ({ request, env, params
     if (!env.DB) return json({ success: false, error: "DB binding missing (DB)" }, 500);
 
     const storyId = toInt(params.id, 0);
+    const url = new URL(request.url);
+    const queryUserId = toInt(url.searchParams.get("user_id"), 0);
+    const headerUserId = toInt(request.headers.get("x-user-id"), 0);
     const body = await request.json().catch(() => ({} as any));
-    const userId = toInt(body.user_id, 0);
+    const bodyUserId = toInt(body?.user_id, 0);
+    const userId = queryUserId || headerUserId || bodyUserId;
 
     if (!storyId) return json({ success: false, error: "Invalid story id" }, 400);
     if (!userId) return json({ success: false, error: "user_id is required" }, 400);

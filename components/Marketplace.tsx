@@ -5,6 +5,7 @@ import { User, Product } from '../types';
 import { MARKETPLACE_CATEGORIES, MARKETPLACE_COUNTRIES } from '../constants';
 import { imageCache, observeForThumbnail, observeForFeed } from '../utils/imageCache';
 import { PostUploadProgressBanner, PostUploadState } from './PostUploadProgress';
+import { PostMenu } from './Post/PostMenu';
 
 // ==================== OPTIMIZED DATA-SAVING MARKETPLACE IMAGE ====================
 
@@ -881,13 +882,37 @@ interface ProductDetailModalProps {
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
-  product,
+  product: initialProduct,
   currentUser,
   onClose,
   onMessage,
 }) => {
+  const [product, setProduct] = useState<Product>(initialProduct);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mainSrc, setMainSrc] = useState('');
+
+  useEffect(() => {
+    setProduct(initialProduct);
+  }, [initialProduct]);
+
+  useEffect(() => {
+    const handleProductUpdated = (e: any) => {
+      if (e.detail && (e.detail.id === product.id || e.detail.product_id === product.id)) {
+        setProduct((prev) => ({ ...prev, ...e.detail }));
+      }
+    };
+    const handleProductDeleted = (e: any) => {
+      if (e.detail && (e.detail.id === product.id || e.detail.product_id === product.id)) {
+        onClose();
+      }
+    };
+    window.addEventListener('product-updated', handleProductUpdated);
+    window.addEventListener('product-deleted', handleProductDeleted);
+    return () => {
+      window.removeEventListener('product-updated', handleProductUpdated);
+      window.removeEventListener('product-deleted', handleProductDeleted);
+    };
+  }, [product.id, onClose]);
 
   const productImages = useMemo(() => {
     const productVariants = safeImageVariants((product as any).image_variants);
@@ -949,12 +974,41 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <i className="fas fa-arrow-left text-[#F8FAFC] text-xl"></i>
         </button>
         <div className="text-[#F8FAFC] font-bold text-lg truncate px-3">Marketplace</div>
-        <button
-          onClick={() => onMessage((product as any).seller_id)}
-          className="w-10 h-10 rounded-full bg-[#1E293B] text-[#1877F2] flex items-center justify-center"
-        >
-          <i className="fab fa-facebook-messenger text-lg"></i>
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => onMessage((product as any).seller_id)}
+            className="w-10 h-10 rounded-full bg-[#1E293B] text-[#1877F2] hover:bg-[#334155] flex items-center justify-center transition-colors"
+            title="Message seller"
+          >
+            <i className="fab fa-facebook-messenger text-lg"></i>
+          </button>
+          <PostMenu
+            item={{
+              ...product,
+              id: (product as any).id,
+              product_id: (product as any).id,
+              user_id: (product as any).seller_id,
+              seller_id: (product as any).seller_id,
+              type: 'product',
+              title: (product as any).title,
+              description: (product as any).description,
+              main_price: (product as any).main_price,
+              discount_price: (product as any).discount_price,
+              category: (product as any).category,
+              address: (product as any).address,
+              country: (product as any).country,
+              images: (product as any).images,
+              image_variants: (product as any).image_variants,
+            }}
+            currentUser={currentUser}
+            onDeleteSuccess={() => {
+              onClose();
+            }}
+            onEditSuccess={(updatedItem) => {
+              setProduct((prev) => ({ ...prev, ...updatedItem }));
+            }}
+          />
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto bg-[#050B18]">

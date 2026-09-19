@@ -13,19 +13,34 @@ import {
 import { useIsPostSaved, toggleSavePost } from '../utils/savedPosts';
 import { VerifiedBadge } from './VerifiedBadge';
 import { CommentActionModal } from './CommentActionModal';
+import { PostMenu } from './Post/PostMenu';
 import type { ReactionType } from '../types';
+
+const safeParseJsonArray = <T = any>(val: any): T[] => {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+};
 
 const formatCount = (count: number): string => {
   if (!count || count <= 0) return '0';
   if (count >= 1000000) {
-    const val = (count / 1000000).toFixed(1);
+    const val = String((count / 1000000).toFixed(1) ?? '');
     return `${val.endsWith('.0') ? val.slice(0, -2) : val}M`;
   }
   if (count >= 1000) {
-    const val = (count / 1000).toFixed(1);
+    const val = String((count / 1000).toFixed(1) ?? '');
     return `${val.endsWith('.0') ? val.slice(0, -2) : val}K`;
   }
-  return count.toString();
+  return String(count);
 };
 
 interface InstagramVideoCardProps {
@@ -89,10 +104,25 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
   onOpenComments,
   onOpenReactions,
 }) => {
-  const activePost = post || reel || {};
+  const [localPost, setLocalPost] = useState<any>(post || reel || {});
+  const activePost = localPost;
   const activePostId = Number(
     activePost?.id || activePost?.reel_id || activePost?.reelId || 0
   );
+
+  useEffect(() => {
+    setLocalPost(post || reel || {});
+  }, [post, reel]);
+
+  useEffect(() => {
+    const handlePostUpdate = (e: any) => {
+      if (e.detail && (e.detail.id === activePostId || e.detail.post_id === activePostId)) {
+        setLocalPost((prev: any) => ({ ...prev, ...e.detail }));
+      }
+    };
+    window.addEventListener('post-updated', handlePostUpdate);
+    return () => window.removeEventListener('post-updated', handlePostUpdate);
+  }, [activePostId]);
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -135,12 +165,22 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
     activePost?.user?.isOnline
   );
 
-  // Video URL resolution
+  // Video URL resolution with safe media parsing
+  const parsedMediaUrls = safeParseJsonArray<string>(activePost?.media_urls);
+  const parsedMediaMeta = safeParseJsonArray<any>(activePost?.media_meta);
+  const videoUrlFromMeta = parsedMediaMeta.find((item: any) => {
+    const parsed = typeof item === 'string' ? (() => { try { return JSON.parse(item); } catch { return null; } })() : item;
+    const u = String(parsed?.feed || parsed?.full || parsed?.url || parsed?.video_url || '').toLowerCase();
+    return parsed?.type === 'video' || /\.(mp4|webm|mov|m4v)(\?|$)/i.test(u);
+  });
+  const resolvedVideoFromMeta = videoUrlFromMeta ? String(videoUrlFromMeta?.feed || videoUrlFromMeta?.full || videoUrlFromMeta?.url || videoUrlFromMeta?.video_url || '') : '';
+
   const videoUrl =
     activePost?.media_url ||
     activePost?.video_url ||
-    (Array.isArray(activePost?.media_urls) ? activePost.media_urls.find((u: string) => typeof u === 'string' && u.match(/\.(mp4|webm|mov|m4v)/i)) : null) ||
-    activePost?.media_urls?.[0] ||
+    resolvedVideoFromMeta ||
+    parsedMediaUrls.find((u: string) => typeof u === 'string' && String(u ?? '').match(/\.(mp4|webm|mov|m4v)/i)) ||
+    parsedMediaUrls[0] ||
     activePost?.meta?.video_url ||
     '';
 
@@ -868,6 +908,26 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
             <span className="hidden xs:inline">Videos</span>
             <i className="fas fa-chevron-right text-[10px] ml-0.5"></i>
           </button>
+
+          {/* Post Menu (Edit / Delete) */}
+          <PostMenu
+            item={{
+              ...activePost,
+              id: activePostId,
+              user_id: authorId,
+              type: 'post',
+              content: activePost.content || activePost.caption,
+              caption: activePost.caption || activePost.content,
+            }}
+            currentUser={currentUser}
+            onDeleteSuccess={(deletedId) => {
+              onDelete?.(Number(deletedId));
+            }}
+            onEditSuccess={(updatedItem) => {
+              setLocalPost((prev: any) => ({ ...prev, ...updatedItem }));
+              onEdit?.(activePostId, updatedItem.content || updatedItem.caption || '');
+            }}
+          />
         </div>
       </div>
 

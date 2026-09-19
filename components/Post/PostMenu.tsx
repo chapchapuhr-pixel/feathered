@@ -37,6 +37,13 @@ export const PostMenu: React.FC<PostMenuProps> = ({
   const isOwner = Boolean(currentUserId && currentUserId === itemOwnerId);
   const isEvent = item.type === "event" || Boolean(item.event_date);
   const isSong = item.type === "song" || Boolean(item.song_url || item.audio_url);
+  const isProduct =
+    item.type === "product" ||
+    Boolean(item.product_id) ||
+    Boolean(item.seller_id) ||
+    Boolean(item.main_price !== undefined || item.price !== undefined);
+  const isStory = item.type === "story" || Boolean(item.story_id);
+  const canEdit = isOwner && !isSong && !isStory;
 
   // Close menu when clicking outside
   useEffect(() => {
@@ -94,6 +101,28 @@ export const PostMenu: React.FC<PostMenuProps> = ({
         window.dispatchEvent(new CustomEvent("song-deleted", { detail: { id: itemId } }));
         await fetch(`/api/songs?id=${itemId}&user_id=${uid}`, {
           method: "DELETE",
+          headers: {
+            "x-user-id": String(uid),
+          },
+        });
+      } else if (isProduct) {
+        // Products posts: DELETE /api/products?id=${productId}&user_id=${userId}
+        window.dispatchEvent(new CustomEvent("product-deleted", { detail: { id: itemId } }));
+        window.dispatchEvent(new CustomEvent("post-deleted", { detail: { id: itemId } }));
+        await fetch(`/api/products?id=${itemId}&user_id=${uid}`, {
+          method: "DELETE",
+          headers: {
+            "x-user-id": String(uid),
+          },
+        });
+      } else if (isStory) {
+        // Stories: DELETE /api/stories/:id?user_id=X
+        window.dispatchEvent(new CustomEvent("story-deleted", { detail: { id: itemId } }));
+        await fetch(`/api/stories/${itemId}?user_id=${uid}`, {
+          method: "DELETE",
+          headers: {
+            "x-user-id": String(uid),
+          },
         });
       } else if (isEvent) {
         // Events posts: DELETE /api/events/${event.id}?user_id=${currentUserId}
@@ -101,6 +130,9 @@ export const PostMenu: React.FC<PostMenuProps> = ({
         window.dispatchEvent(new CustomEvent("post-deleted", { detail: { id: itemId } }));
         await fetch(`/api/events/${itemId}?user_id=${uid}`, {
           method: "DELETE",
+          headers: {
+            "x-user-id": String(uid),
+          },
         });
       } else {
         // Normal Post/Videos: DELETE /api/posts/:id?user_id=X
@@ -185,8 +217,8 @@ export const PostMenu: React.FC<PostMenuProps> = ({
               align === "left" ? "left-0" : "right-0"
             } mt-1.5 w-48 bg-[#0F172A] border border-[#1E293B] rounded-xl shadow-2xl z-50 overflow-hidden py-1 animate-in fade-in zoom-in-95 duration-150`}
           >
-            {/* Edit (Post Owner Only) */}
-            {isOwner && (
+            {/* Edit (Post Owner Only, not allowed for Songs/Stories) */}
+            {canEdit && (
               <button
                 type="button"
                 onClick={handleEditClick}
@@ -194,7 +226,7 @@ export const PostMenu: React.FC<PostMenuProps> = ({
               >
                 <Edit className="w-4 h-4 text-[#1877F2] group-hover:scale-110 transition-transform" />
                 <span className="text-sm font-medium">
-                  {isEvent ? "Edit Event" : "Edit Post"}
+                  {isProduct ? "Edit Product" : isEvent ? "Edit Event" : "Edit Post"}
                 </span>
               </button>
             )}
@@ -208,7 +240,7 @@ export const PostMenu: React.FC<PostMenuProps> = ({
               >
                 <Trash2 className="w-4 h-4 text-rose-400 group-hover:scale-110 transition-transform" />
                 <span className="text-sm font-medium">
-                  {isSong ? "Delete Song" : isEvent ? "Delete Event" : "Delete Post"}
+                  {isProduct ? "Delete Product" : isSong ? "Delete Song" : isStory ? "Delete Story" : isEvent ? "Delete Event" : "Delete Post"}
                 </span>
               </button>
             )}

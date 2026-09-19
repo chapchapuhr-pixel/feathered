@@ -651,14 +651,32 @@ const getPostTextPreview = (p: any, max = 140) => {
 };
 
 const safeJsonArray = (v: any): string[] => {
-  if (Array.isArray(v)) return v.filter(Boolean).map(String);
+  if (!v) return [];
+  const extractUrl = (item: any): string => {
+    if (!item) return '';
+    if (typeof item === 'object') {
+      return String(item.url || item.feed || item.full || item.thumb || '');
+    }
+    return String(item ?? '');
+  };
+
+  if (Array.isArray(v)) {
+    return v.map(extractUrl).filter((s) => s.length > 0 && s !== '[object Object]');
+  }
   if (typeof v === 'string') {
     const s = v.trim();
-    if (!s) return [];
-    if (s.startsWith('[')) {
+    if (!s || s === 'null' || s === 'undefined') return [];
+    if (s.startsWith('[') || s.startsWith('{')) {
       try {
         const parsed = JSON.parse(s);
-        return Array.isArray(parsed) ? parsed.filter(Boolean).map(String) : [];
+        if (Array.isArray(parsed)) {
+          return parsed.map(extractUrl).filter((url) => url.length > 0 && url !== '[object Object]');
+        }
+        if (parsed && typeof parsed === 'object') {
+          const u = extractUrl(parsed);
+          return u && u !== '[object Object]' ? [u] : [];
+        }
+        return [];
       } catch {
         return [];
       }
@@ -3150,11 +3168,29 @@ if (typeof document !== 'undefined') {
 // ==================== EVENT HELPERS ====================
 const safeParseJsonArray = (v: any): string[] => {
   if (!v) return [];
-  if (Array.isArray(v)) return v.filter(Boolean).map(String);
+  const extractUrl = (item: any): string => {
+    if (!item) return '';
+    if (typeof item === 'object') {
+      return String(item.url || item.feed || item.full || item.thumb || '');
+    }
+    return String(item ?? '');
+  };
+
+  if (Array.isArray(v)) {
+    return v.map(extractUrl).filter((s) => s.length > 0 && s !== '[object Object]');
+  }
   if (typeof v === 'string') {
+    const s = v.trim();
+    if (!s || s === 'null' || s === 'undefined') return [];
     try {
-      const arr = JSON.parse(v);
-      if (Array.isArray(arr)) return arr.filter(Boolean).map(String);
+      const arr = JSON.parse(s);
+      if (Array.isArray(arr)) {
+        return arr.map(extractUrl).filter((s) => s.length > 0 && s !== '[object Object]');
+      }
+      if (arr && typeof arr === 'object') {
+        const u = extractUrl(arr);
+        return u && u !== '[object Object]' ? [u] : [];
+      }
     } catch {}
   }
   return [];
@@ -4393,6 +4429,8 @@ export const EventPost = memo(
     brands = [],
     chats = [],
     onEventClick,
+    onDelete,
+    onEdit,
   }: {
     event: any;
     author?: any;
@@ -4410,6 +4448,8 @@ export const EventPost = memo(
     brands?: Brand[];
     chats?: any[];
     onEventClick?: (eventId: number) => void;
+    onDelete?: (id: number) => void;
+    onEdit?: (id: number, text: string) => void;
   }) => {
     const [rsvpStatus, setRsvpStatus] = useState(event.user_rsvp_status || '');
     const [attendeesCount, setAttendeesCount] = useState(
@@ -4896,6 +4936,12 @@ export const EventPost = memo(
                   }}
                   currentUser={currentUser}
                   onShare={() => setShowShareSheet(true)}
+                  onDeleteSuccess={(deletedId) => {
+                    onDelete?.(Number(deletedId));
+                  }}
+                  onEditSuccess={(updatedItem) => {
+                    onEdit?.(Number(event.id || event.event_id), updatedItem.description || updatedItem.title || '');
+                  }}
                 />
               </div>
             </div>
@@ -5575,14 +5621,14 @@ export const EventFeedCard = memo(
 const formatReactionCount = (count: number): string => {
   if (!count || count <= 0) return '0';
   if (count >= 1000000) {
-    const val = (count / 1000000).toFixed(1);
+    const val = String((count / 1000000).toFixed(1) ?? '');
     return `${val.endsWith('.0') ? val.slice(0, -2) : val}M`;
   }
   if (count >= 1000) {
-    const val = (count / 1000).toFixed(1);
+    const val = String((count / 1000).toFixed(1) ?? '');
     return `${val.endsWith('.0') ? val.slice(0, -2) : val}K`;
   }
-  return count.toString();
+  return String(count);
 };
 
 export const ReactionButton = memo(
@@ -5882,9 +5928,25 @@ export const Post = memo(
 
                                                                                                      
     const { onViewProduct, getProductData } = useContext(MarketplaceContext);
-    const p: any = post as any;
+    const [localPost, setLocalPost] = useState<any>(post);
+    const p: any = localPost as any;
     const a: any = author as any;
     const meta: any = p?.meta || {};
+
+    useEffect(() => {
+      setLocalPost(post);
+    }, [post]);
+
+    useEffect(() => {
+      const handlePostUpdated = (e: any) => {
+        const id = Number(p?.id || p?.post_id || 0);
+        if (e.detail && (e.detail.id === id || e.detail.post_id === id)) {
+          setLocalPost((prev: any) => ({ ...prev, ...e.detail }));
+        }
+      };
+      window.addEventListener('post-updated', handlePostUpdated);
+      return () => window.removeEventListener('post-updated', handlePostUpdated);
+    }, [p?.id, p?.post_id]);
 
     // ==================== SPONSORED DETECTION - ENHANCED ====================
     const isSponsored = !!p?.is_sponsored || !!meta?.is_sponsored || !!meta?.sponsored_meta;
@@ -6029,6 +6091,8 @@ export const Post = memo(
       brands={brands}
       chats={chats}
       onEventClick={onEventClick}
+      onDelete={onDelete}
+      onEdit={onEdit}
     />
   );
 }
@@ -6477,13 +6541,23 @@ export const Post = memo(
                 <PostMenu
                   item={{
                     ...p,
-                    id: postId,
-                    user_id: safeUserId(a),
+                    id: isMarketplace ? (productId || postId) : postId,
+                    product_id: isMarketplace ? (productId || postId) : undefined,
+                    seller_id: isMarketplace ? (p.seller_id || safeUserId(a)) : undefined,
+                    user_id: isMarketplace ? (p.seller_id || safeUserId(a)) : safeUserId(a),
                     type: isMarketplace
                       ? 'product'
                       : isGroupPost
                       ? 'group_post'
                       : 'post',
+                    title: p.title || productData?.title,
+                    description: p.description || p.content || productData?.description,
+                    main_price: p.main_price ?? productData?.main_price,
+                    discount_price: p.discount_price ?? productData?.discount_price,
+                    category: p.category || productData?.category,
+                    country: p.country || productData?.country,
+                    address: p.address || productData?.address,
+                    images: p.images || productData?.images,
                     content: p.content,
                     caption: p.caption,
                     group_id: groupId,
@@ -6494,7 +6568,8 @@ export const Post = memo(
                     onDelete?.(Number(deletedId));
                   }}
                   onEditSuccess={(updatedItem) => {
-                    onEdit?.(Number(postId), updatedItem.content || updatedItem.caption);
+                    setLocalPost((prev: any) => ({ ...prev, ...updatedItem }));
+                    onEdit?.(Number(postId), updatedItem.content || updatedItem.caption || updatedItem.description || '');
                   }}
                 />
               </div>
