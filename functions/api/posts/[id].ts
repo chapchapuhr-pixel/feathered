@@ -21,6 +21,28 @@ const toNum = (v: any, fallback = 0) => {
 
 const toStr = (v: any, fallback = "") => (typeof v === "string" ? v : fallback);
 
+const guessTypeFromUrl = (url: string) => {
+  const u = String(url || "").toLowerCase();
+  if (
+    u.includes(".mp4") ||
+    u.includes(".webm") ||
+    u.includes(".mov") ||
+    u.includes(".m4v") ||
+    u.includes(".m3u8")
+  ) {
+    return "video";
+  }
+  if (
+    u.includes(".mp3") ||
+    u.includes(".wav") ||
+    u.includes(".m4a") ||
+    u.includes(".ogg")
+  ) {
+    return "audio";
+  }
+  return "image";
+};
+
 export const onRequestOptions: PagesFunction = async () =>
   new Response(null, { status: 204, headers: cors });
 
@@ -124,40 +146,100 @@ const handleEdit = async (request: Request, env: Env, params: any): Promise<Resp
       bindings.push(content);
     }
 
-    // Primary media
-    if (body.media_url !== undefined) {
-      updates.push("media_url = ?");
-      bindings.push(toStr(body.media_url, "").trim() || null);
-    }
-    if (body.media_type !== undefined) {
-      updates.push("media_type = ?");
-      bindings.push(toStr(body.media_type, "").trim() || null);
-    }
+    // Media handling with full synchronization (ensures feeds.ts reflects edited images)
+    const rawMediaUrls = body.media_urls !== undefined ? body.media_urls : body.images;
+    if (rawMediaUrls !== undefined) {
+      let cleanUrls: string[] = [];
+      if (Array.isArray(rawMediaUrls)) {
+        cleanUrls = rawMediaUrls.map((u) => String(u || "").trim()).filter(Boolean);
+      } else if (typeof rawMediaUrls === "string") {
+        try {
+          const parsed = JSON.parse(rawMediaUrls);
+          if (Array.isArray(parsed)) {
+            cleanUrls = parsed.map((u) => String(u || "").trim()).filter(Boolean);
+          } else if (rawMediaUrls.trim()) {
+            cleanUrls = [rawMediaUrls.trim()];
+          }
+        } catch {
+          if (rawMediaUrls.trim()) cleanUrls = [rawMediaUrls.trim()];
+        }
+      }
+      cleanUrls = cleanUrls.filter(
+        (u) => u !== "[object Object]" && u !== "null" && u !== "undefined"
+      );
 
-    // Multi media (JSON strings)
-    if (body.media_urls !== undefined) {
       updates.push("media_urls = ?");
-      bindings.push(
-        typeof body.media_urls === "string"
-          ? body.media_urls
-          : JSON.stringify(body.media_urls ?? [])
-      );
-    }
-    if (body.media_types !== undefined) {
+      bindings.push(JSON.stringify(cleanUrls));
+
+      // Synchronize media_types
+      let mediaTypes: string[] = [];
+      if (Array.isArray(body.media_types)) {
+        mediaTypes = body.media_types.map(String);
+      } else {
+        mediaTypes = cleanUrls.map(guessTypeFromUrl);
+      }
       updates.push("media_types = ?");
-      bindings.push(
-        typeof body.media_types === "string"
-          ? body.media_types
-          : JSON.stringify(body.media_types ?? [])
-      );
-    }
-    if (body.media_meta !== undefined) {
-      updates.push("media_meta = ?");
-      bindings.push(
-        typeof body.media_meta === "string"
-          ? body.media_meta
-          : JSON.stringify(body.media_meta ?? {})
-      );
+      bindings.push(JSON.stringify(mediaTypes));
+
+      // Synchronize media_meta so feeds.ts reads up-to-date image/video items
+      if (body.media_meta !== undefined) {
+        updates.push("media_meta = ?");
+        bindings.push(
+          typeof body.media_meta === "string"
+            ? body.media_meta
+            : JSON.stringify(body.media_meta ?? [])
+        );
+      } else {
+        const synthMeta = cleanUrls.map((url, i) => {
+          const t = mediaTypes[i] || guessTypeFromUrl(url);
+          return {
+            thumb: t === "image" ? url : null,
+            feed: url,
+            full: url,
+            url,
+            type: t,
+          };
+        });
+        updates.push("media_meta = ?");
+        bindings.push(JSON.stringify(synthMeta));
+      }
+
+      // Synchronize media_url and media_type if not explicitly passed
+      if (body.media_url !== undefined) {
+        updates.push("media_url = ?");
+        bindings.push(toStr(body.media_url, "").trim() || null);
+      } else {
+        updates.push("media_url = ?");
+        bindings.push(cleanUrls[0] || null);
+      }
+
+      if (body.media_type !== undefined) {
+        updates.push("media_type = ?");
+        bindings.push(toStr(body.media_type, "").trim() || null);
+      } else {
+        updates.push("media_type = ?");
+        bindings.push(
+          cleanUrls[0] ? mediaTypes[0] || guessTypeFromUrl(cleanUrls[0]) : null
+        );
+      }
+    } else {
+      // Primary media single fields when media_urls is omitted
+      if (body.media_url !== undefined) {
+        updates.push("media_url = ?");
+        bindings.push(toStr(body.media_url, "").trim() || null);
+      }
+      if (body.media_type !== undefined) {
+        updates.push("media_type = ?");
+        bindings.push(toStr(body.media_type, "").trim() || null);
+      }
+      if (body.media_meta !== undefined) {
+        updates.push("media_meta = ?");
+        bindings.push(
+          typeof body.media_meta === "string"
+            ? body.media_meta
+            : JSON.stringify(body.media_meta ?? {})
+        );
+      }
     }
 
     // Visibility

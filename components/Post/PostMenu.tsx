@@ -91,9 +91,18 @@ export const PostMenu: React.FC<PostMenuProps> = ({
     setIsDeleting(true);
     const uid = currentUserId || itemOwnerId;
 
-    // Trigger immediate optimistic deletion
-    onDeleteSuccess?.(itemId);
+    // Trigger visual deleting animation immediately on the feed item card
+    window.dispatchEvent(new CustomEvent("post-deleting", { detail: { id: itemId } }));
+    window.dispatchEvent(new CustomEvent("product-deleting", { detail: { id: itemId } }));
+    window.dispatchEvent(new CustomEvent("event-deleting", { detail: { id: itemId } }));
+    window.dispatchEvent(new CustomEvent("song-deleting", { detail: { id: itemId } }));
+
+    // Keep confirm modal open briefly to show the deleting animation feedback
+    await new Promise((res) => setTimeout(res, 260));
     setShowDeleteConfirm(false);
+
+    // Trigger optimistic removal
+    onDeleteSuccess?.(itemId);
 
     try {
       if (isSong) {
@@ -319,14 +328,21 @@ export const PostMenu: React.FC<PostMenuProps> = ({
                 type="button"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className="flex-1 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition shadow-lg shadow-rose-600/30"
+                className={`flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 shadow-lg shadow-rose-600/30 active:scale-95 ${
+                  isDeleting ? 'animate-pulse bg-rose-700 opacity-95 scale-[0.98]' : ''
+                }`}
               >
                 {isDeleting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <span>Deleting...</span>
+                  </>
                 ) : (
-                  <Trash2 className="w-3.5 h-3.5" />
+                  <>
+                    <Trash2 className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <span>Delete</span>
+                  </>
                 )}
-                <span>Delete</span>
               </button>
             </div>
           </div>

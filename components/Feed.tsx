@@ -3468,17 +3468,18 @@ const getPostMediaList = (p: any) => {
         }
 
         if (parsedItem && typeof parsedItem === 'object') {
-          const thumbUrl = String(parsedItem.thumb || parsedItem.thumbnail_url || '').trim();
+          const thumbUrl = String(parsedItem.thumb || parsedItem.thumbnail_url || parsedItem.thumbnail || '').trim();
           const feedUrl = String(parsedItem.feed || parsedItem.feed_url || '').trim();
           const fullUrl = String(parsedItem.full || parsedItem.full_url || '').trim();
+          const urlField = String(parsedItem.url || '').trim();
 
-          const displayUrl = feedUrl || fullUrl || thumbUrl;
+          const displayUrl = feedUrl || fullUrl || thumbUrl || urlField;
           if (displayUrl) {
             out.push({
               url: displayUrl,                         // feed card
-              thumb: thumbUrl || feedUrl || fullUrl,  // small preview
-              feed: feedUrl || fullUrl || thumbUrl,   // feed image
-              full: feedUrl || fullUrl || thumbUrl,   // ✅ full now prefers feed too
+              thumb: thumbUrl || feedUrl || fullUrl || urlField,  // small preview
+              feed: feedUrl || fullUrl || thumbUrl || urlField,   // feed image
+              full: fullUrl || feedUrl || thumbUrl || urlField,   // ✅ full now prefers feed too
               kind: guessKind(displayUrl, parsedItem.type),
             });
           }
@@ -3505,6 +3506,28 @@ const getPostMediaList = (p: any) => {
           });
         }
       });
+    }
+
+    // ✅ STEP 2.5: Fallback to images array
+    if (!out.length) {
+      const rawImages = safeParseArray(p?.images);
+      if (rawImages.length > 0) {
+        rawImages.forEach((img: any) => {
+          const u =
+            typeof img === 'string'
+              ? img.trim()
+              : String(img?.feed || img?.full || img?.url || img?.thumb || '').trim();
+          if (u && u !== '[object Object]' && u !== 'null' && u !== 'undefined') {
+            out.push({
+              url: u,
+              thumb: u,
+              feed: u,
+              full: u,
+              kind: guessKind(u),
+            });
+          }
+        });
+      }
     }
 
     // ✅ STEP 3: Fallback to media array or video_url/feed_url
@@ -5948,6 +5971,34 @@ export const Post = memo(
       return () => window.removeEventListener('post-updated', handlePostUpdated);
     }, [p?.id, p?.post_id]);
 
+    const [isExiting, setIsExiting] = useState(false);
+
+    useEffect(() => {
+      const handleDeleting = (e: any) => {
+        const id = Number(p?.id || p?.post_id || p?.event_id || p?.product_id || 0);
+        const targetId = Number(e?.detail?.id || 0);
+        if (id && targetId && id === targetId) {
+          setIsExiting(true);
+        }
+      };
+      window.addEventListener('post-deleting', handleDeleting);
+      window.addEventListener('event-deleting', handleDeleting);
+      window.addEventListener('product-deleting', handleDeleting);
+      window.addEventListener('song-deleting', handleDeleting);
+      return () => {
+        window.removeEventListener('post-deleting', handleDeleting);
+        window.removeEventListener('event-deleting', handleDeleting);
+        window.removeEventListener('product-deleting', handleDeleting);
+        window.removeEventListener('song-deleting', handleDeleting);
+      };
+    }, [p?.id, p?.post_id, p?.event_id, p?.product_id]);
+
+    const exitAnimClass = `w-full transition-all duration-400 ease-out origin-top ${
+      isExiting
+        ? 'opacity-0 scale-95 -translate-y-4 max-h-0 overflow-hidden pointer-events-none py-0 my-0 mb-0 border-0'
+        : 'opacity-100 scale-100'
+    }`;
+
     // ==================== SPONSORED DETECTION - ENHANCED ====================
     const isSponsored = !!p?.is_sponsored || !!meta?.is_sponsored || !!meta?.sponsored_meta;
     const sponsoredMeta = p?.sponsored_meta || meta?.sponsored_meta || null;
@@ -6073,29 +6124,31 @@ export const Post = memo(
     // If it's an event post, render EventPost component
     if (isEventPost) {
       const event = normalizeEventFromFeed(p);  
-  return (
-    <EventPost
-      event={event}
-      author={a}
-      currentUser={currentUser}
-      users={users}
-      onProfileClick={onProfileClick}
-      onRSVP={onRSVP}
-      onFollow={onFollow}
-      isFollowing={isFollowing}
-      followLoading={followLoading}
-      onReact={(eventAsPost, type) => onReact(eventAsPost as PostType, type)}
-      onShare={onShare}
-      onOpenComments={(evPost) => onOpenComments(evPost || post)}
-      groups={groups}
-      brands={brands}
-      chats={chats}
-      onEventClick={onEventClick}
-      onDelete={onDelete}
-      onEdit={onEdit}
-    />
-  );
-}
+      return (
+        <div className={exitAnimClass}>
+          <EventPost
+            event={event}
+            author={a}
+            currentUser={currentUser}
+            users={users}
+            onProfileClick={onProfileClick}
+            onRSVP={onRSVP}
+            onFollow={onFollow}
+            isFollowing={isFollowing}
+            followLoading={followLoading}
+            onReact={(eventAsPost, type) => onReact(eventAsPost as PostType, type)}
+            onShare={onShare}
+            onOpenComments={(evPost) => onOpenComments(evPost || post)}
+            groups={groups}
+            brands={brands}
+            chats={chats}
+            onEventClick={onEventClick}
+            onDelete={onDelete}
+            onEdit={onEdit}
+          />
+        </div>
+      );
+    }
 
 
       
@@ -6397,35 +6450,37 @@ export const Post = memo(
       (isVideoPost(p) || (videoMedia.length > 0 && !imageMedia.length) || p.media_type === 'video' || p.type === 'video' || p.type === 'reel' || p.post_type === 'reel' || p.kind === 'reel')
     ) {
       return (
-        <article className="w-full relative bg-[#0F172A] border-b-[8px] border-[#050B18]">
-          <InstagramVideoCard
-            post={p}
-            author={a}
-            currentUser={currentUser}
-            users={users}
-            stories={stories}
-            autoplay={false}
-            onProfileClick={onProfileClick}
-            onReact={(postItem, rType) => onReact(post, rType)}
-            onShare={(postId, newCount) => {
-              setShareCount(newCount);
-              onShare(postId, newCount);
-            }}
-            onVideoClick={() => onVideoClick(post)}
-            onDelete={onDelete}
-            onEdit={onEdit}
-            isFollowing={isFollowing}
-            onFollow={onFollow}
-            onHashtagClick={onHashtagClick}
-            onOpenComments={() => onOpenComments(post)}
-            onOpenReactions={() => handleOpenReactionsSheet()}
-          />
-        </article>
+        <div className={exitAnimClass}>
+          <article className="w-full relative bg-[#0F172A] border-b-[8px] border-[#050B18]">
+            <InstagramVideoCard
+              post={p}
+              author={a}
+              currentUser={currentUser}
+              users={users}
+              stories={stories}
+              autoplay={false}
+              onProfileClick={onProfileClick}
+              onReact={(postItem, rType) => onReact(post, rType)}
+              onShare={(postId, newCount) => {
+                setShareCount(newCount);
+                onShare(postId, newCount);
+              }}
+              onVideoClick={() => onVideoClick(post)}
+              onDelete={onDelete}
+              onEdit={onEdit}
+              isFollowing={isFollowing}
+              onFollow={onFollow}
+              onHashtagClick={onHashtagClick}
+              onOpenComments={() => onOpenComments(post)}
+              onOpenReactions={() => handleOpenReactionsSheet()}
+            />
+          </article>
+        </div>
       );
     }
 
     return (
-      <>
+      <div className={exitAnimClass}>
         <article className="w-full relative bg-[#0F172A] border-b-[8px] border-[#050B18]">
           {/* HEADER SECTION - Group Post vs Regular Post */}
             {isGroupPost ? (
@@ -6565,7 +6620,10 @@ export const Post = memo(
                   currentUser={currentUser}
                   onShare={(item) => setShowShareSheet(true)}
                   onDeleteSuccess={(deletedId) => {
-                    onDelete?.(Number(deletedId));
+                    setIsExiting(true);
+                    setTimeout(() => {
+                      onDelete?.(Number(deletedId));
+                    }, 380);
                   }}
                   onEditSuccess={(updatedItem) => {
                     setLocalPost((prev: any) => ({ ...prev, ...updatedItem }));
@@ -7241,7 +7299,7 @@ export const Post = memo(
           onShare={() => setShowShareSheet(true)}
           onOpenReactions={handleOpenReactionsSheet}
         />
-      </>
+      </div>
     );
   },
   postPropsEqual

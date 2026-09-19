@@ -159,7 +159,7 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
   return arr
     .slice(0, maxItems)
     .map((m: any) => {
-      const thumb = cleanUrl(m?.thumb);
+      const thumb = cleanUrl(m?.thumb || m?.thumbnail || m?.thumb_url);
       const feed = cleanUrl(
         m?.feed || m?.feed_url || m?.url || m?.full || m?.full_url
       );
@@ -175,10 +175,18 @@ const parseMediaMeta = (raw: any, maxItems = 20) => {
           ? type
           : guessTypeFromUrl(full || feed || thumb);
 
+      const validFeed = isHttpUrl(feed) ? feed : null;
+      const validFull = isHttpUrl(full) ? full : null;
+      const validThumb = isHttpUrl(thumb)
+        ? thumb
+        : finalType === "image"
+        ? validFeed || validFull
+        : null;
+
       return {
-        thumb: isHttpUrl(thumb) ? thumb : null,
-        feed: isHttpUrl(feed) ? feed : null,
-        full: isHttpUrl(full) ? full : null,
+        thumb: validThumb,
+        feed: validFeed,
+        full: validFull,
         type: finalType,
       };
     })
@@ -189,6 +197,13 @@ const normalizeMedia = (row: any) => {
   const meta = parseMediaMeta(row?.media_meta);
 
   if (meta.length > 0) {
+    const rawImageItems = meta.filter(
+      (m: any) =>
+        (m.type || "").toLowerCase() === "image" ||
+        guessTypeFromUrl(m.feed || m.full || m.thumb) === "image"
+    );
+    const imageItems = rawImageItems.length > 0 ? rawImageItems : meta;
+
     return {
       media: meta,
       media_url: meta[0]?.feed || meta[0]?.full || meta[0]?.thumb || null,
@@ -198,8 +213,7 @@ const normalizeMedia = (row: any) => {
       media_types: meta.map(
         (m: any) => m.type || guessTypeFromUrl(m.feed || m.full || m.thumb)
       ),
-      images: meta
-        .filter((m: any) => (m.type || "").toLowerCase() === "image")
+      images: imageItems
         .map((m: any) => m.feed || m.full || m.thumb)
         .filter(Boolean),
       thumb_url: meta[0]?.thumb || null,
@@ -210,7 +224,9 @@ const normalizeMedia = (row: any) => {
 
   const single = cleanUrl(row?.media_url);
   const urls = parseJsonArrayUrls(row?.media_urls);
-  const outUrls = urls.length ? urls : single ? [single] : [];
+  const rawImages = parseJsonArrayUrls(row?.images);
+  const combinedUrls = urls.length ? urls : rawImages;
+  const outUrls = combinedUrls.length ? combinedUrls : single ? [single] : [];
 
   const types = parseJsonArrayStrings(row?.media_types);
   let outTypes = types.length ? types : [];
