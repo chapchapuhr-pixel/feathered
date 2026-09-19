@@ -7,7 +7,7 @@ type Env = { DB: D1Database };
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, x-user-id",
 };
 
 export const onRequestOptions: PagesFunction = async () =>
@@ -94,15 +94,6 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       );
     }
 
-    // ─────────────────────────────────────────────────────────
-    // Column count check:
-    //   id, uploader_id, title, artist_name, album_name,
-    //   cover_image_url, audio_url, duration_seconds, genre,
-    //   plays_count (literal 0)
-    //   → 10 columns listed
-    //   → 9 placeholders + literal 0 for plays_count
-    //   → 9 bind args
-    // ─────────────────────────────────────────────────────────
     const { id: song_id } = await withNewContentId(async (id) => {
       return await env.DB.prepare(`
         INSERT INTO songs
@@ -116,9 +107,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
             audio_url,
             duration_seconds,
             genre,
-            plays_count
+            plays_count,
+            is_deleted
           )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0)
       `)
         .bind(
           id,
@@ -145,7 +137,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
 
 /**
  * GET /api/songs
- * Fetch songs with real plays count
+ * Fetch songs with real plays count (excludes deleted)
  */
 export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
   try {
@@ -175,6 +167,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ env }) => {
         COALESCE(plays_count, 0) AS plays_count
 
       FROM songs
+      WHERE COALESCE(is_deleted, 0) = 0
       ORDER BY created_at DESC
     `).all();
 
