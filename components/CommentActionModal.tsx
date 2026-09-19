@@ -57,27 +57,21 @@ export const CommentActionModal: React.FC<CommentActionModalProps> = ({
     }
   };
 
-  const handleHideClick = async () => {
-    setLoadingAction('hide');
+  const handleHideClick = () => {
+    onClose();
     try {
-      await Promise.resolve(onToggleHide(comment));
-      onClose();
+      onToggleHide(comment);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoadingAction(null);
     }
   };
 
-  const handleDeleteClick = async () => {
-    setLoadingAction('delete');
+  const handleDeleteClick = () => {
+    onClose();
     try {
-      await Promise.resolve(onDelete(comment));
-      onClose();
+      onDelete(comment);
     } catch (e) {
       console.error(e);
-    } finally {
-      setLoadingAction(null);
     }
   };
 

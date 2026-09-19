@@ -12,6 +12,7 @@ import {
   setCachedSongs,
 } from '../utils/dataCache';
 import { CommentActionModal, useCommentLongPress } from './CommentActionModal';
+import { PostMenu } from './Post/PostMenu';
 import { apiFetch } from '../utils/api';
 
 /* =========================================================
@@ -3280,15 +3281,19 @@ const MusicSystem: React.FC<MusicSystemProps> = ({
   };
 
   const deleteSong = async (id: string) => {
-    if (!currentUser || !isAdmin) return;
-    if (!confirm('Delete this song?')) return;
+    if (!currentUser) return;
+    const userId = (currentUser as any).id;
 
-    const res = await apiJson<any>(`/api/songs?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
-    if (!res.success) {
-      alert(res.error || 'Failed to delete');
-      return;
+    // Optimistic immediate removal
+    setSongs((prev) => prev.filter((s) => String(s.id) !== String(id)));
+
+    try {
+      await fetch(`/api/songs?id=${encodeURIComponent(id)}&user_id=${encodeURIComponent(userId)}`, {
+        method: 'DELETE',
+      });
+    } catch (e) {
+      console.error('Failed to delete song', e);
     }
-    setSongs((prev) => prev.filter((s) => String(s.id) !== id));
   };
 
   const filteredSongs = useMemo(() => {
@@ -3835,7 +3840,24 @@ const MusicSystem: React.FC<MusicSystemProps> = ({
                             <td className="p-4"><div className="flex items-center gap-3"><img src={item.cover || DEFAULT_MUSIC_COVER} className="w-10 h-10 rounded object-cover" alt="" /><div><div className="font-bold text-white text-sm">{item.title}</div><div className="text-xs text-[#888]">{item.artist}</div></div></div></td>
                             <td className="p-4 text-right font-bold text-sm">{formatCompactNumber(playCount)}</td>
                             <td className="p-4 text-right font-bold text-sm">{(item.stats as any)?.likes || 0}</td>
-                            <td className="p-4 text-right"><button onClick={() => deleteSong(String(item.id))} className="text-red-500 hover:text-red-400 p-2" title="Delete"><i className="fas fa-trash-alt"></i></button></td>
+                            <td className="p-4 text-right">
+                              <div className="flex justify-end">
+                                <PostMenu
+                                  item={{
+                                    ...item,
+                                    id: item.id,
+                                    song_id: item.id,
+                                    type: 'song',
+                                    user_id: item.uploaderId || (currentUser as any)?.id,
+                                    uploaderId: item.uploaderId || (currentUser as any)?.id,
+                                  }}
+                                  currentUser={currentUser}
+                                  onDeleteSuccess={(id) => {
+                                    setSongs((prev) => prev.filter((s) => String(s.id) !== String(id)));
+                                  }}
+                                />
+                              </div>
+                            </td>
                           </tr>
                         );
                       })}

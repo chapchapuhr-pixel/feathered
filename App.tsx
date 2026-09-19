@@ -10444,6 +10444,45 @@ const editPost = useCallback(
   [requireAuth, posts, profilePosts, view, selectedUserId, fetchProfilePosts]
 );
 
+useEffect(() => {
+  const handlePostDeleted = (e: any) => {
+    const id = Number(e?.detail?.id);
+    if (id) {
+      setPosts((p) => {
+        const next = safeArray(p).filter((x: any) => Number(x.id) !== id);
+        lastGoodPostsRef.current = next;
+        stableFeedRef.current = next;
+        return next;
+      });
+      setProfilePosts((prev) => safeArray(prev).filter((x: any) => Number(x.id) !== id));
+    }
+  };
+  const handlePostUpdated = (e: any) => {
+    const updated = e?.detail;
+    if (updated?.id) {
+      setPosts((p) => {
+        const next = safeArray(p).map((x: any) =>
+          Number(x.id) === Number(updated.id) ? normalizePost({ ...x, ...updated }) : x
+        );
+        lastGoodPostsRef.current = next;
+        stableFeedRef.current = next;
+        return next;
+      });
+      setProfilePosts((prev) =>
+        safeArray(prev).map((x: any) =>
+          Number(x.id) === Number(updated.id) ? normalizePost({ ...x, ...updated }) : x
+        )
+      );
+    }
+  };
+  window.addEventListener('post-deleted', handlePostDeleted);
+  window.addEventListener('post-updated', handlePostUpdated);
+  return () => {
+    window.removeEventListener('post-deleted', handlePostDeleted);
+    window.removeEventListener('post-updated', handlePostUpdated);
+  };
+}, []);
+
 // Add this with your other navigation functions
 const openPost = useCallback((postId: number) => {
   // Find the post in your posts state
@@ -10927,6 +10966,8 @@ return (
   onViewProductFromPost={openProductFromPost}
   onRSVPEvent={onRSVPEvent}
   getPostAuthor={getPostAuthor}
+  onDeletePost={(postId: number) => deletePost(postId)}
+  onEditPost={(postId: number, content: string) => editPost(postId, content)}
   onPushMore={pushMore}
   pushedPosts={pushedPosts}
   //group react  

@@ -1524,45 +1524,9 @@ export const UserProfile: React.FC<UserProfileProps> = ({
                 );
               }
 
-              // Regular post with edit/delete menu
-              const isAuthor = currentUser && Number(post.user_id) === Number(currentUser.id);
-              
+              // Regular post handled by Post component (menu managed in Feed/Post)
               return (
                 <div key={post.id} className="relative">
-                  {/* Three-dot menu for post author */}
-                  {isAuthor && (
-                    <div className="absolute top-4 right-4 z-10">
-                      <button
-                        onClick={(e) => togglePostMenu(post.id, e)}
-                        className="w-8 h-8 rounded-full bg-black/20 hover:bg-[#1E293B] flex items-center justify-center transition-colors"
-                      >
-                        <i className="fas fa-ellipsis-h text-[#F8FAFC]"></i>
-                      </button>
-
-                      {postMenuOpen === post.id && (
-                        <div className="absolute right-0 mt-2 w-48 bg-[#0F172A] border border-[#1E293B] rounded-lg shadow-lg z-50">
-                          <button
-                            onClick={() => handleEditPost(post.id)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1E293B] transition-colors text-left"
-                          >
-                            <i className="fas fa-edit text-[#1877F2] w-5"></i>
-                            <span className="text-[#F8FAFC] font-medium">Edit Post</span>
-                          </button>
-                          
-                          <div className="h-[1px] bg-[#1E293B] my-1"></div>
-                          
-                          <button
-                            onClick={() => handleDeletePost(post.id)}
-                            className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[#1E293B] transition-colors text-left"
-                          >
-                            <i className="fas fa-trash text-red-500 w-5"></i>
-                            <span className="text-red-400 font-medium">Delete Post</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
                   <Post
                     post={post}
                     author={user}

@@ -4860,25 +4860,44 @@ export const EventPost = memo(
                 </div>
               </div>
 
-              {onFollow && currentUser && creator?.id && safeUserId(creator) !== safeUserId(currentUser) && (
-                <button
-                  onClick={handleFollowClick}
-                  disabled={followLoading}
-                  className={`px-3 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 ml-2 ${
-                    isFollowing
-                      ? 'bg-[#1E293B] text-[#F8FAFC] hover:bg-[#334155]'
-                      : 'bg-[#1877F2] text-white hover:bg-[#166FE5]'
-                  } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  {followLoading ? (
-                    <i className="fas fa-spinner fa-spin"></i>
-                  ) : isFollowing ? (
-                    'Following'
-                  ) : (
-                    'Follow'
-                  )}
-                </button>
-              )}
+              <div className="flex items-center gap-2">
+                {onFollow && currentUser && creator?.id && safeUserId(creator) !== safeUserId(currentUser) && (
+                  <button
+                    onClick={handleFollowClick}
+                    disabled={followLoading}
+                    className={`px-3 py-1.5 text-[15px] font-bold rounded-lg transition-all duration-200 ${
+                      isFollowing
+                        ? 'bg-[#1E293B] text-[#F8FAFC] hover:bg-[#334155]'
+                        : 'bg-[#1877F2] text-white hover:bg-[#166FE5]'
+                    } ${followLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {followLoading ? (
+                      <i className="fas fa-spinner fa-spin"></i>
+                    ) : isFollowing ? (
+                      'Following'
+                    ) : (
+                      'Follow'
+                    )}
+                  </button>
+                )}
+
+                <PostMenu
+                  item={{
+                    ...event,
+                    id: event.id || event.event_id,
+                    user_id: event.creator_id || event.user_id || safeUserId(creator),
+                    creator_id: event.creator_id || event.user_id || safeUserId(creator),
+                    type: 'event',
+                    title: event.title,
+                    description: event.description,
+                    event_date: event.event_date,
+                    location: event.location,
+                    cover_url: event.cover_url,
+                  }}
+                  currentUser={currentUser}
+                  onShare={() => setShowShareSheet(true)}
+                />
+              </div>
             </div>
 
             <div className="pb-4 px-3.5 sm:px-4" onClick={handleCardClick}>
@@ -6457,6 +6476,7 @@ export const Post = memo(
 
                 <PostMenu
                   item={{
+                    ...p,
                     id: postId,
                     user_id: safeUserId(a),
                     type: isMarketplace
@@ -6470,6 +6490,12 @@ export const Post = memo(
                   }}
                   currentUser={currentUser}
                   onShare={(item) => setShowShareSheet(true)}
+                  onDeleteSuccess={(deletedId) => {
+                    onDelete?.(Number(deletedId));
+                  }}
+                  onEditSuccess={(updatedItem) => {
+                    onEdit?.(Number(postId), updatedItem.content || updatedItem.caption);
+                  }}
                 />
               </div>
             )}
@@ -9584,6 +9610,9 @@ interface FeedProps {
 
   feedItems: any[];
 
+  onDeletePost?: (id: number) => void;
+  onEditPost?: (id: number, content: string) => void;
+
   currentUser: User | null;
   users: User[];
 
@@ -9735,6 +9764,9 @@ export const Feed = memo(({
   gymjLoading = false,
   onOpenGroup,
   onLoginClick,
+
+  onDeletePost,
+  onEditPost,
 
   // ✅ new from App.tsx
   onLoadMoreFeed,
@@ -9955,6 +9987,8 @@ export const Feed = memo(({
   onViewProductFromPost={onViewProductFromPost}
   onRSVP={onRSVPEvent}
   onOpenGroup={onOpenGroup}
+  onDelete={onDeletePost}
+  onEdit={onEditPost}
   
   pushButton={showPushButton ? (
     <button

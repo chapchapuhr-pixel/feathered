@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { User } from "../types";
 import { PostUploadProgressBanner, PostUploadState } from "./PostUploadProgress";
+import { PostMenu } from "./Post/PostMenu";
 
 // ========== API HELPERS ==========
 const authHeaders = () => {
@@ -908,8 +909,25 @@ const EventCard: React.FC<{
               <span className="text-[#94A3B8] text-[10px]">{formatRelativeTime(event.created_at)}</span>
             </div>
 
-            <div onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
               <RSVPCounts goingCount={attendeesCount} interestedCount={interestedCount} size="sm" />
+              <PostMenu
+                item={{
+                  ...event,
+                  id: event.id,
+                  event_id: event.id,
+                  type: 'event',
+                  user_id: event.creator_id || event.user_id,
+                  creator_id: event.creator_id || event.user_id,
+                  title: event.title,
+                  description: event.description,
+                  event_date: event.event_date,
+                  location: event.location,
+                  cover_url: event.cover_url,
+                  visibility: event.visibility,
+                }}
+                currentUser={currentUser}
+              />
             </div>
           </div>
 
@@ -1168,8 +1186,25 @@ const EventCard: React.FC<{
             <span className="text-[#94A3B8] text-xs">{formatRelativeTime(event.created_at)}</span>
           </div>
 
-          <div onClick={(e) => e.stopPropagation()}>
+          <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
             <RSVPCounts goingCount={attendeesCount} interestedCount={interestedCount} size="sm" />
+            <PostMenu
+              item={{
+                ...event,
+                id: event.id,
+                event_id: event.id,
+                type: 'event',
+                user_id: event.creator_id || event.user_id,
+                creator_id: event.creator_id || event.user_id,
+                title: event.title,
+                description: event.description,
+                event_date: event.event_date,
+                location: event.location,
+                cover_url: event.cover_url,
+                visibility: event.visibility,
+              }}
+              currentUser={currentUser}
+            />
           </div>
         </div>
 
@@ -1407,6 +1442,33 @@ export const AllEvents: React.FC<AllEventsProps> = ({
   useEffect(() => {
     loadingRef.current = loading;
   }, [loading]);
+
+  useEffect(() => {
+    const handleEventDeleted = (e: any) => {
+      const id = Number(e?.detail?.id);
+      if (id) {
+        setEvents((prev) => prev.filter((ev) => Number(ev.id) !== id));
+        setFilteredEvents((prev) => prev.filter((ev) => Number(ev.id) !== id));
+      }
+    };
+    const handleEventUpdated = (e: any) => {
+      const updated = e?.detail;
+      if (updated?.id) {
+        setEvents((prev) =>
+          prev.map((ev) => (Number(ev.id) === Number(updated.id) ? { ...ev, ...updated } : ev))
+        );
+        setFilteredEvents((prev) =>
+          prev.map((ev) => (Number(ev.id) === Number(updated.id) ? { ...ev, ...updated } : ev))
+        );
+      }
+    };
+    window.addEventListener("event-deleted", handleEventDeleted);
+    window.addEventListener("event-updated", handleEventUpdated);
+    return () => {
+      window.removeEventListener("event-deleted", handleEventDeleted);
+      window.removeEventListener("event-updated", handleEventUpdated);
+    };
+  }, []);
 
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(searchQuery.trim()), 300);
