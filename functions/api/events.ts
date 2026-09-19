@@ -34,8 +34,6 @@ const getEventIdFromPath = (path: string): number | null => {
   return m ? parseInt(m[1], 10) : null;
 };
 
-const ADMIN_ROLES = new Set(["admin", "superadmin", "moderator", "owner"]);
-
 export const onRequest: PagesFunction<Env> = async (context) => {
   const { request, env } = context;
   const url = new URL(request.url);
@@ -45,9 +43,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
 
   // GET /api/events
-  if (method === "GET" && path === "/api/events") {
-    return handleGetEvents(env, null);
-  }
+  if (method === "GET" && path === "/api/events") return handleGetEvents(env, null);
 
   // GET /api/groups/:id/events
   if (method === "GET" && path.match(/^\/api\/groups\/\d+\/events$/)) {
@@ -57,9 +53,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   }
 
   // POST /api/events
-  if (method === "POST" && path === "/api/events") {
-    return handleCreateEvent(request, env, null);
-  }
+  if (method === "POST" && path === "/api/events") return handleCreateEvent(request, env, null);
 
   // POST /api/groups/:id/events
   if (method === "POST" && path.match(/^\/api\/groups\/\d+\/events$/)) {
@@ -68,7 +62,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     return handleCreateEvent(request, env, groupId);
   }
 
-  // PATCH /api/events/:id
+  // PATCH/PUT /api/events/:id
   if ((method === "PATCH" || method === "PUT") && path.match(/^\/api\/events\/\d+$/)) {
     const eventId = getEventIdFromPath(path);
     if (!eventId) return json({ success: false, error: "Invalid event ID" }, 400);
@@ -86,7 +80,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 };
 
 /* =========================================================
-   GET — list events (all or per group)
+   GET — list events (all or per group), excluding deleted
    ========================================================= */
 async function handleGetEvents(env: Env, groupId: number | null) {
   try {
@@ -183,7 +177,7 @@ async function handleGetEvents(env: Env, groupId: number | null) {
 }
 
 /* =========================================================
-   POST — create event (optionally inside a group)
+   POST — create event
    ========================================================= */
 async function handleCreateEvent(request: Request, env: Env, groupId: number | null) {
   try {
@@ -206,25 +200,20 @@ async function handleCreateEvent(request: Request, env: Env, groupId: number | n
     if (!creator_id) return json({ success: false, error: "creator_id missing" }, 400);
     if (!title) return json({ success: false, error: "title missing" }, 400);
     if (!event_date) return json({ success: false, error: "event_date missing" }, 400);
-    if (isNaN(Date.parse(event_date))) {
-      return json({ success: false, error: "Invalid event_date" }, 400);
-    }
+    if (isNaN(Date.parse(event_date))) return json({ success: false, error: "Invalid event_date" }, 400);
     if (!["worldwide", "targeted"].includes(visibility)) {
       return json({ success: false, error: "Invalid visibility" }, 400);
     }
 
-    // If group-scoped, require membership
     if (gid) {
       const group = await env.DB
         .prepare(`SELECT id FROM groups WHERE id = ? LIMIT 1`)
-        .bind(gid)
-        .first();
+        .bind(gid).first();
       if (!group) return json({ success: false, error: "Group not found" }, 404);
 
       const member = await env.DB
         .prepare(`SELECT 1 FROM group_members WHERE group_id = ? AND user_id = ? LIMIT 1`)
-        .bind(gid, creator_id)
-        .first();
+        .bind(gid, creator_id).first();
       if (!member) return json({ success: false, error: "Not a member of this group" }, 403);
     }
 
@@ -238,16 +227,8 @@ async function handleCreateEvent(request: Request, env: Env, groupId: number | n
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
         .bind(
-          id,
-          creator_id,
-          title,
-          description,
-          event_date,
-          location,
-          cover_url,
-          visibility,
-          gid,
-          created_at
+          id, creator_id, title, description, event_date,
+          location, cover_url, visibility, gid, created_at
         )
         .run();
     });
@@ -289,11 +270,10 @@ async function handleEditEvent(request: Request, env: Env, eventId: number) {
 
     const event = await env.DB
       .prepare(
-        `SELECT id, creator_id, group_id FROM events
+        `SELECT id, creator_id FROM events
          WHERE id = ? AND COALESCE(is_deleted, 0) = 0 LIMIT 1`
       )
-      .bind(eventId)
-      .first<any>();
+      .bind(eventId).first<any>();
 
     if (!event) return json({ success: false, error: "Event not found" }, 404);
     if (toNum(event.creator_id) !== userId) {
@@ -306,52 +286,44 @@ async function handleEditEvent(request: Request, env: Env, eventId: number) {
     if (body.title !== undefined) {
       const title = str(body.title);
       if (!title) return json({ success: false, error: "title cannot be empty" }, 400);
-      updates.push("title = ?");
-      bindings.push(title);
+      updates.push("title = ?"); bindings.push(title);
     }
     if (body.description !== undefined) {
-      updates.push("description = ?");
-      bindings.push(str(body.description) || null);
+      updates.push("description = ?"); bindings.push(str(body.description) || null);
     }
     if (body.event_date !== undefined || body.date !== undefined) {
       const d = str(body.event_date ?? body.date);
       if (!d || isNaN(Date.parse(d))) {
         return json({ success: false, error: "Invalid event_date" }, 400);
       }
-      updates.push("event_date = ?");
-      bindings.push(d);
+      updates.push("event_date = ?"); bindings.push(d);
     }
     if (body.location !== undefined) {
-      updates.push("location = ?");
-      bindings.push(str(body.location) || null);
+      updates.push("location = ?"); bindings.push(str(body.location) || null);
     }
     if (body.cover_url !== undefined || body.image !== undefined) {
-      updates.push("cover_url = ?");
-      bindings.push(str(body.cover_url ?? body.image) || null);
+      updates.push("cover_url = ?"); bindings.push(str(body.cover_url ?? body.image) || null);
     }
     if (body.visibility !== undefined) {
       const v = str(body.visibility);
       if (!["worldwide", "targeted"].includes(v)) {
         return json({ success: false, error: "Invalid visibility" }, 400);
       }
-      updates.push("visibility = ?");
-      bindings.push(v);
+      updates.push("visibility = ?"); bindings.push(v);
     }
 
-    if (!updates.length) {
-      return json({ success: false, error: "Nothing to update" }, 400);
-    }
+    if (!updates.length) return json({ success: false, error: "Nothing to update" }, 400);
 
     updates.push("updated_at = CURRENT_TIMESTAMP");
 
-    const sql = `UPDATE events SET ${updates.join(", ")} WHERE id = ?`;
-    bindings.push(eventId);
-    await env.DB.prepare(sql).bind(...bindings).run();
+    await env.DB
+      .prepare(`UPDATE events SET ${updates.join(", ")} WHERE id = ?`)
+      .bind(...bindings, eventId)
+      .run();
 
     const updated = await env.DB
       .prepare(`SELECT * FROM events WHERE id = ? LIMIT 1`)
-      .bind(eventId)
-      .first();
+      .bind(eventId).first();
 
     return json({ success: true, event: updated ?? null });
   } catch (err: any) {
@@ -378,8 +350,7 @@ async function handleDeleteEvent(request: Request, env: Env, eventId: number) {
         `SELECT id, creator_id FROM events
          WHERE id = ? AND COALESCE(is_deleted, 0) = 0 LIMIT 1`
       )
-      .bind(eventId)
-      .first<any>();
+      .bind(eventId).first<any>();
 
     if (!event) return json({ success: false, error: "Event not found" }, 404);
     if (toNum(event.creator_id) !== userId) {
@@ -392,8 +363,7 @@ async function handleDeleteEvent(request: Request, env: Env, eventId: number) {
          SET is_deleted = 1, deleted_by = ?, deleted_at = CURRENT_TIMESTAMP
          WHERE id = ?`
       )
-      .bind(userId, eventId)
-      .run();
+      .bind(userId, eventId).run();
 
     return json({
       success: true,
