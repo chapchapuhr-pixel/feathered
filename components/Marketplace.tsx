@@ -909,8 +909,16 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
     (currentUser && Number(currentUser.id) === Number((product as any).seller_id) && currentUser.is_verified)
   );
 
-  const sellerName = (product as any).seller_name || sellerUser?.name || (product as any).seller_username || sellerUser?.username || 'Seller';
-  const sellerAvatar = (product as any).seller_avatar || sellerUser?.profile_image_url || '';
+  const sellerName =
+    sellerUser?.name ||
+    (product as any).seller_name ||
+    sellerUser?.username ||
+    (product as any).seller_username ||
+    'User';
+  const sellerAvatar =
+    sellerUser?.profile_image_url ||
+    (product as any).seller_avatar ||
+    '';
 
   useEffect(() => {
     setProduct(initialProduct);
@@ -1114,7 +1122,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     onProfileClick(sid);
                   }
                 }}
-                className={`w-13 h-13 rounded-full object-cover bg-[#1E293B] shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                className={`w-12 h-12 rounded-full object-cover bg-[#1E293B] shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
               />
             ) : (
               <div
@@ -1125,7 +1133,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                     onProfileClick(sid);
                   }
                 }}
-                className={`w-13 h-13 rounded-full bg-[#1E293B] text-[#94A3B8] flex items-center justify-center font-bold text-xl shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                className={`w-12 h-12 rounded-full bg-[#1E293B] text-[#94A3B8] flex items-center justify-center font-bold text-lg shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
               >
                 {sellerName.charAt(0).toUpperCase()}
               </div>
@@ -1141,16 +1149,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                       onProfileClick(sid);
                     }
                   }}
-                  className={`text-[#F8FAFC] font-bold text-[21px] leading-tight truncate max-w-[220px] sm:max-w-[280px] ${onProfileClick ? 'cursor-pointer hover:underline' : ''}`}
+                  className={`text-[#F8FAFC] font-bold text-[21px] leading-tight truncate max-w-[240px] sm:max-w-[320px] ${onProfileClick ? 'cursor-pointer hover:underline' : ''}`}
                 >
                   {sellerName}
                 </span>
                 {sellerIsVerified && (
-                  <VerifiedBadge size={19} title="Verified Seller" className="inline-flex shrink-0" />
+                  <VerifiedBadge size={21} className="shrink-0" />
                 )}
-              </div>
-              <div className="text-[#94A3B8] text-[15px] font-medium mt-0.5">
-                Seller
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">
