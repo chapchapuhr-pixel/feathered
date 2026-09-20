@@ -411,8 +411,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         AND (p.content IS NULL OR (
           p.content NOT LIKE '%"post_type":"product"%'
           AND p.content NOT LIKE '%"kind":"product"%'
+          AND p.content NOT LIKE '%marketplace%'
           AND p.content NOT LIKE '%Check out my new event:%'
         ))
+        AND NOT EXISTS (
+          SELECT 1 FROM products pr_dup
+          WHERE pr_dup.seller_id = p.user_id
+            AND pr_dup.title = p.content
+            AND COALESCE(pr_dup.is_deleted, 0) = 0
+        )
         AND (
           COALESCE(LOWER(p.media_type), '') NOT LIKE '%video%'
           AND COALESCE(LOWER(p.media_url), '') NOT LIKE '%.mp4%'

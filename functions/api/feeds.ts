@@ -295,6 +295,14 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       AND p.content NOT LIKE '%Check out my new event:%'
     ))`);
 
+    // Exclude any duplicate posts in posts table that match a seller's active product
+    wherePosts.push(`NOT EXISTS (
+      SELECT 1 FROM products pr_dup
+      WHERE pr_dup.seller_id = p.user_id
+        AND pr_dup.title = p.content
+        AND COALESCE(pr_dup.is_deleted, 0) = 0
+    )`);
+
     wherePosts.push(`(
       COALESCE(LOWER(p.media_type), '') NOT LIKE '%video%'
       AND COALESCE(LOWER(p.media_url), '') NOT LIKE '%.mp4%'
@@ -1031,7 +1039,8 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         NULL AS media_url, NULL AS media_type,
 
         pr.images AS media_urls,
-        NULL AS media_types, NULL AS media_meta,
+        NULL AS media_types,
+        pr.image_variants AS media_meta,
 
         (SELECT COUNT(*) FROM product_comments pc WHERE pc.product_id = pr.id AND COALESCE(pc.is_deleted,0) = 0) AS comments_count,
 
@@ -1106,7 +1115,26 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
           'kind','product',
           'type','product',
           'product_id', pr.id,
-          'marketplace', json_object('id', pr.id)
+          'title', pr.title,
+          'description', pr.description,
+          'price', COALESCE(pr.discount_price, pr.main_price),
+          'main_price', pr.main_price,
+          'discount_price', pr.discount_price,
+          'currency', 'TZS',
+          'location', pr.address,
+          'address', pr.address,
+          'images', pr.images,
+          'image_variants', pr.image_variants,
+          'marketplace', json_object(
+            'id', pr.id,
+            'product_id', pr.id,
+            'title', pr.title,
+            'price', COALESCE(pr.discount_price, pr.main_price),
+            'currency', 'TZS',
+            'location', pr.address,
+            'images', pr.images,
+            'image_variants', pr.image_variants
+          )
         ) AS meta,
 
         NULL AS group_id, NULL AS group_name, NULL AS group_image

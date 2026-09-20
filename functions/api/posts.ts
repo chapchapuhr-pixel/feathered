@@ -267,6 +267,25 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     if (
+      body?.type === "marketplace" ||
+      body?.type === "product" ||
+      body?.post_type === "product" ||
+      body?.kind === "product" ||
+      body?.product_id != null ||
+      body?.meta?.kind === "product" ||
+      body?.meta?.type === "product" ||
+      body?.meta?.marketplace != null
+    ) {
+      return json(
+        {
+          success: false,
+          error: "Products must be created via /api/products, not in the posts table.",
+        },
+        400
+      );
+    }
+
+    if (
       typeof final_media_url === "string" &&
       final_media_url.startsWith("data:")
     ) {

@@ -694,7 +694,10 @@ const getMarketplaceProductId = (p: any) => {
     meta?.product_id ??
     meta?.productId ??
     meta?.marketplace?.id ??
-    meta?.product?.id;
+    meta?.marketplace?.product_id ??
+    meta?.product?.id ??
+    (String(p?.feed_key || '').startsWith('product:') ? p.feed_key.replace('product:', '') : null) ??
+    (p?.item_type === 'product' || p?.source === 'product' || p?.type === 'marketplace' ? p?.id : null);
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
 };
@@ -777,14 +780,45 @@ const getMarketplaceImageVariants = (
 };                     
 
   
-const getMarketplacePriceLine = (productData?: any) => {
-  const priceRaw = productData?.price ?? productData?.main_price ?? null;
-  const currency = productData?.currency || 'TZS';
+const getMarketplacePriceLine = (productData?: any, p?: any) => {
+  const meta = p?.meta;
+  const priceRaw =
+    productData?.price ??
+    productData?.main_price ??
+    productData?.discount_price ??
+    meta?.marketplace?.price ??
+    meta?.marketplace?.discount_price ??
+    meta?.marketplace?.main_price ??
+    meta?.price ??
+    meta?.discount_price ??
+    meta?.main_price ??
+    p?.price ??
+    p?.main_price ??
+    p?.discount_price ??
+    null;
+  const currency =
+    productData?.currency ||
+    meta?.marketplace?.currency ||
+    meta?.currency ||
+    p?.currency ||
+    'TZS';
   const loc =
     (typeof productData?.location === 'string' &&
       productData.location.split(',')[0]) ||
     (typeof productData?.address === 'string' &&
       productData.address.split(',')[0]) ||
+    (typeof meta?.marketplace?.location === 'string' &&
+      meta.marketplace.location.split(',')[0]) ||
+    (typeof meta?.marketplace?.address === 'string' &&
+      meta.marketplace.address.split(',')[0]) ||
+    (typeof meta?.location === 'string' &&
+      meta.location.split(',')[0]) ||
+    (typeof meta?.address === 'string' &&
+      meta.address.split(',')[0]) ||
+    (typeof p?.location === 'string' &&
+      p.location.split(',')[0]) ||
+    (typeof p?.address === 'string' &&
+      p.address.split(',')[0]) ||
     'Marketplace';
   const priceNum = priceRaw != null ? Number(priceRaw) : NaN;
   const price = Number.isFinite(priceNum) ? priceNum.toFixed(0) : null;
@@ -6105,6 +6139,9 @@ export const Post = memo(
       p?.post_type === 'product' ||
       p?.type === 'product' ||
       p?.kind === 'product' ||
+      p?.item_type === 'product' ||
+      p?.source === 'product' ||
+      String(p?.feed_key || '').startsWith('product:') ||
       meta?.type === 'product' ||
       meta?.kind === 'product' ||
       !!p?.product_id ||
@@ -6161,7 +6198,7 @@ export const Post = memo(
     , [isMarketplace, p, productData]);
 
     const { price, currency, loc } = isMarketplace
-      ? getMarketplacePriceLine(productData)
+      ? getMarketplacePriceLine(productData, p)
       : { price: null, currency: 'TZS', loc: 'Marketplace' };
 
     const [galleryOpen, setGalleryOpen] = useState(false);
@@ -6655,6 +6692,19 @@ export const Post = memo(
               </div>
             )}
 
+            {isMarketplace && (p.title || productData?.title || p.content) && (
+              <div className="px-3 md:px-4 pb-2">
+                <div className="text-[#F8FAFC] font-semibold text-[17px]">
+                  {p.title || productData?.title || p.content}
+                </div>
+                {(p.description || productData?.description) && (
+                  <div className="text-[#94A3B8] text-[14px] mt-0.5 line-clamp-2">
+                    {p.description || productData?.description}
+                  </div>
+                )}
+              </div>
+            )}
+
             {(() => {
               if (!p.content || isMarketplace) return null;
               
@@ -6776,19 +6826,27 @@ export const Post = memo(
                   </div>
                 )}
 
-                {price && (
+                {(price || productId) && (
                   <div className="px-4 py-2 flex items-center justify-between border-t border-[#1E293B] mt-1">
                     <div className="flex items-center gap-1">
-                      <span className="text-[#F8FAFC] text-[19px] font-bold">
-                        {currency}
-                      </span>
-                      <span className="text-[#F8FAFC] text-[22px] font-bold">
-                        {price}
-                      </span>
+                      {price ? (
+                        <>
+                          <span className="text-[#F8FAFC] text-[19px] font-bold">
+                            {currency}
+                          </span>
+                          <span className="text-[#F8FAFC] text-[22px] font-bold">
+                            {price}
+                          </span>
+                        </>
+                      ) : (
+                        <span className="text-[#94A3B8] text-sm font-medium">
+                          {loc || 'Marketplace'}
+                        </span>
+                      )}
                     </div>
 
                     <button
-                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white px-4 py-1.5 rounded-full font-bold text-[15px] transition-colors shadow-sm"
+                      className="bg-[#1877F2] hover:bg-[#166FE5] text-white px-4 py-1.5 rounded-full font-bold text-[15px] transition-colors shadow-sm cursor-pointer"
                       onClick={(e) => {
                         e.stopPropagation();
                         if (productId) onViewProduct?.(productId);

@@ -2699,6 +2699,7 @@ const [commentPostSnapshot, setCommentPostSnapshot] = useState<PostType | null>(
   const lastGoodPostsRef = useRef<PostType[]>([]);
   const stableFeedRef = useRef<PostType[]>([]);
   const scheduleSilentRefreshRef = useRef<any>(null);
+  const triggerSilentRefreshRef = useRef<() => void>(() => {});
 
   const [loginError, setLoginError] = useState('');
 
@@ -5620,82 +5621,131 @@ const navigateTo = useCallback((target: View) => {
     }
   }, [currentUser, requireAuth, fetchMyAds]);
 
-  // Helper to create marketplace posts
-const createMarketplacePost = useCallback(
-  async (product: any) => {
-    if (!currentUser) return;
+  // Helper to create marketplace feed items (local feed only, product lives in products table)
+  const createMarketplacePost = useCallback(
+    (product: any) => {
+      if (!currentUser || !product) return null;
 
-    const variants = safeImageVariants(product.image_variants);
-    const images: string[] = safeArray<string>(product.images);
-    
-    const mediaMeta = variants.length > 0 
-      ? variants.map((v) => ({
-          thumb: v.thumb || v.feed,
-          feed: v.feed,
-          full: v.feed, // keep full = feed
-          type: 'image',
-        }))
-      : images.map((url) => ({
-          thumb: url,
-          feed: url,
-          full: url,
-          type: 'image',
-        }));
-    
-    const media_urls = variants.length > 0 
-      ? variants.map((v) => v.feed).filter(Boolean) 
-      : images;
-    
-    const media_url = media_urls[0] || '';
-    const media_type = media_url ? 'image' : null;
+      const variants = safeImageVariants(product.image_variants);
+      const images: string[] = safeArray<string>(product.images);
+      
+      const mediaMeta = variants.length > 0 
+        ? variants.map((v) => ({
+            thumb: v.thumb || v.feed,
+            feed: v.feed,
+            full: v.feed, // keep full = feed
+            type: 'image',
+          }))
+        : images.map((url) => ({
+            thumb: url,
+            feed: url,
+            full: url,
+            type: 'image',
+          }));
+      
+      const media_urls = variants.length > 0 
+        ? variants.map((v) => v.feed).filter(Boolean) 
+        : images;
+      
+      const media_url = media_urls[0] || '';
+      const media_type = media_url ? 'image' : null;
+      const price = product.discount_price ?? product.main_price ?? null;
+      const currency = product.currency_symbol || 'TZS';
+      const location = product.address || '';
+      const productId = Number(product.id);
 
-    const payload = {
-      user_id: currentUser.id,
-      content: product.title || '',
-      visibility: 'public',
-      type: 'marketplace',
-      post_type: 'product',
-      product_id: product.id,
-      media_url,
-      media_type,
-      media_urls,
-      media_types: media_urls.map(() => 'image'),
-      media_meta: mediaMeta,
-      meta: {
+      const productPost = normalizePost({
+        id: productId,
+        product_id: productId,
+        feed_key: `product:${productId}`,
+        user_id: currentUser.id,
+        seller_id: currentUser.id,
+        owner_id: currentUser.id,
+        owner_field: 'seller_id',
+        username: currentUser.username,
+        name: currentUser.name || currentUser.username,
+        profile_image_url: currentUser.profile_image_url,
+        is_verified: currentUser.is_verified,
+        role: currentUser.role || 'user',
+        title: product.title || '',
+        content: product.title || '',
+        description: product.description || '',
+        price,
+        main_price: product.main_price,
+        discount_price: product.discount_price,
+        currency,
+        location,
+        address: location,
+        visibility: 'public',
+        type: 'marketplace',
+        post_type: 'product',
+        item_type: 'product',
         kind: 'product',
-        product_id: product.id,
-        marketplace: {
-          id: product.id,
-          product_id: product.id,
-          price: product.discount_price ?? product.main_price ?? null,
-          currency: product.currency_symbol || 'TZS',
-          location: product.address || '',
+        source: 'product',
+        media_url,
+        media_type,
+        images: media_urls,
+        media_urls,
+        media_types: media_urls.map(() => 'image'),
+        image_variants: mediaMeta,
+        media_meta: mediaMeta,
+        comments_count: 0,
+        reactions_count: 0,
+        shares: 0,
+        views: 0,
+        created_at: product.created_at || new Date().toISOString(),
+        meta: {
+          kind: 'product',
+          type: 'product',
+          product_id: productId,
           title: product.title,
+          description: product.description,
+          price,
+          currency,
+          location,
           images: media_urls,
           image_variants: mediaMeta,
+          marketplace: {
+            id: productId,
+            product_id: productId,
+            price,
+            currency,
+            location,
+            title: product.title,
+            images: media_urls,
+            image_variants: mediaMeta,
+          },
         },
-      },
-    };
+      });
 
-    const created = await apiFetch('/api/posts', {
-      method: 'POST',
-      body: JSON.stringify(payload),
-    });
+      setPosts(prev => {
+        const filtered = safeArray(prev).filter((p: any) => 
+          p?.feed_key !== `product:${productId}` &&
+          !(Number(p?.product_id) === productId) &&
+          !(Number(p?.id) === productId && (p?.type === 'marketplace' || p?.item_type === 'product'))
+        );
+        const next = [productPost, ...filtered];
+        lastGoodPostsRef.current = next;
+        return next;
+      });
 
-    const newPost = normalizePost(created?.post ?? created);
-    
-    setPosts(prev => [newPost, ...safeArray(prev)]);
-    
-    if (Number(currentUser.id) === Number(selectedUserId)) {
-      setProfilePosts(prev => [newPost, ...safeArray(prev)]);
-    }
+      if (Number(currentUser.id) === Number(selectedUserId)) {
+        setProfilePosts(prev => {
+          const filtered = safeArray(prev).filter((p: any) => 
+            p?.feed_key !== `product:${productId}` &&
+            !(Number(p?.product_id) === productId) &&
+            !(Number(p?.id) === productId && (p?.type === 'marketplace' || p?.item_type === 'product'))
+          );
+          return [productPost, ...filtered];
+        });
+      }
 
-    scheduleSilentRefresh();
-    
-    return newPost;
-  },
-  [currentUser, selectedUserId]
-);
+      triggerSilentRefreshRef.current?.();
+
+      return productPost;
+    },
+    [currentUser, selectedUserId]
+  );
 
   const createProduct = useCallback(async (productData: any) => {
     if (!requireAuth("Creating products")) return;
@@ -5727,7 +5777,7 @@ const createMarketplacePost = useCallback(
         return [createdProduct, ...filtered];
       });
 
-      await createMarketplacePost(createdProduct);
+      createMarketplacePost(createdProduct);
       
       return createdProduct;
     } catch (e: any) {
@@ -6817,6 +6867,7 @@ const createReel = useCallback(async (
       fetchReels().catch(() => {});
     }, 8000);
   }, [currentUser, fetchPostsForHome, fetchReels]);
+  triggerSilentRefreshRef.current = scheduleSilentRefresh;
 
   // Event Functions
   const fetchEvents = useCallback(async (): Promise<Event[]> => {
@@ -9423,7 +9474,11 @@ const createPost = useCallback(
     return {
       price: product.discount_price ?? product.main_price,
       location: product.address || 'Marketplace',
-      currency: product.currency_symbol || 'TZS'
+      currency: product.currency_symbol || 'TZS',
+      title: product.title,
+      description: product.description,
+      images: product.images,
+      image_variants: product.image_variants,
     };
   }, [products]);
 
@@ -10964,8 +11019,19 @@ return (
 
     <div className="w-full">
       <MarketplaceContext.Provider value={{
-        onViewProduct: (productId) => {
-          const product = products.find(p => Number(p.id) === Number(productId));
+        onViewProduct: async (productId) => {
+          let product = products.find(p => Number(p.id) === Number(productId));
+          if (!product) {
+            try {
+              const res = await apiFetch(`/api/products?id=${productId}`);
+              if (res?.product) {
+                product = normalizeProduct(res.product);
+                setProducts(prev => [product, ...safeArray(prev)]);
+              }
+            } catch (e) {
+              console.error('Failed to fetch product on view:', e);
+            }
+          }
           if (product) {
             navigateTo('marketplace');
             setActiveProduct(product);
