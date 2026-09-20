@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import { User } from '../types';
 import { useSavedPosts, SavedPostItem, removeSavedPost } from '../utils/savedPosts';
 import { InstagramVideoCard } from './InstagramVideoCard';
@@ -16,8 +16,6 @@ interface SavedPostsPageProps {
   onShare?: (post: any) => void;
 }
 
-type TabType = 'all' | 'video' | 'normal';
-
 export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
   currentUser,
   users = [],
@@ -30,54 +28,16 @@ export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
   onShare,
 }) => {
   const { savedPosts, remove } = useSavedPosts();
-  const [activeTab, setActiveTab] = useState<TabType>('all');
-  const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'feed' | 'grid'>('feed');
 
-  // Filter by search query
-  const filteredPosts = useMemo(() => {
-    let list = savedPosts;
-
-    if (activeTab === 'video') {
-      list = list.filter((item) => item.type === 'video');
-    } else if (activeTab === 'normal') {
-      list = list.filter((item) => item.type === 'normal');
-    }
-
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      list = list.filter((item) => {
-        const text = (item.post?.content || item.post?.caption || item.post?.title || '').toLowerCase();
-        const authorName = (
-          item.post?.author?.name ||
-          item.post?.user?.name ||
-          item.post?.name ||
-          item.post?.username ||
-          ''
-        ).toLowerCase();
-        return text.includes(q) || authorName.includes(q);
-      });
-    }
-
-    return list;
-  }, [savedPosts, activeTab, searchQuery]);
-
-  // Counts for each category
-  const counts = useMemo(() => {
-    const videoCount = savedPosts.filter((item) => item.type === 'video').length;
-    const normalCount = savedPosts.filter((item) => item.type === 'normal').length;
-    return {
-      all: savedPosts.length,
-      video: videoCount,
-      normal: normalCount,
-    };
-  }, [savedPosts]);
+  const authorOf = (p: any) =>
+    users.find((u: any) => Number(u?.id) === Number(p?.user_id || p?.author?.id)) || p?.author || p?.user || currentUser;
 
   return (
     <div className="w-full mx-auto min-h-screen pb-28 font-sans animate-fade-in text-[#F8FAFC]">
       {/* Top Header & Controls wrapped in readable max-width */}
       <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4 pt-4 mb-4">
-        <div className="flex items-center justify-between gap-3 mb-4 bg-[#0B1120] border border-[#1E293B] rounded-2xl p-4 shadow-md">
+        <div className="flex items-center justify-between gap-3 bg-[#0B1120] border border-[#1E293B] rounded-2xl p-4 shadow-md">
           <div className="flex items-center gap-3">
             {onBack && (
               <button
@@ -95,7 +55,7 @@ export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
               <div>
                 <h1 className="text-xl font-bold text-[#F8FAFC] leading-tight">Saved Posts</h1>
                 <p className="text-xs text-[#94A3B8]">
-                  {counts.all} saved item{counts.all === 1 ? '' : 's'} • Stored locally
+                  {savedPosts.length} saved item{savedPosts.length === 1 ? '' : 's'} • Stored locally
                 </p>
               </div>
             </div>
@@ -127,146 +87,47 @@ export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
             </button>
           </div>
         </div>
-
-        {/* Category Tabs: Video Posts & Normal Posts */}
-        <div className="grid grid-cols-3 gap-2 mb-4 bg-[#0B1120] border border-[#1E293B] p-1.5 rounded-2xl shadow-sm">
-          <button
-            onClick={() => setActiveTab('all')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-              activeTab === 'all'
-                ? 'bg-[#1E293B] text-[#F8FAFC] shadow-sm border border-[#334155]'
-                : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#0F172A]'
-            }`}
-          >
-            <i className="fas fa-layer-group text-sm"></i>
-            <span>All</span>
-            <span
-              className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                activeTab === 'all' ? 'bg-[#38BDF8]/20 text-[#38BDF8]' : 'bg-[#1E293B] text-[#94A3B8]'
-              }`}
-            >
-              {counts.all}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('video')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-              activeTab === 'video'
-                ? 'bg-[#1E293B] text-[#F8FAFC] shadow-sm border border-[#334155]'
-                : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#0F172A]'
-            }`}
-          >
-            <i className="fas fa-play-circle text-sm text-[#38BDF8]"></i>
-            <span className="truncate">Video Posts</span>
-            <span
-              className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                activeTab === 'video' ? 'bg-[#38BDF8]/20 text-[#38BDF8]' : 'bg-[#1E293B] text-[#94A3B8]'
-              }`}
-            >
-              {counts.video}
-            </span>
-          </button>
-
-          <button
-            onClick={() => setActiveTab('normal')}
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-semibold transition-all ${
-              activeTab === 'normal'
-                ? 'bg-[#1E293B] text-[#F8FAFC] shadow-sm border border-[#334155]'
-                : 'text-[#94A3B8] hover:text-[#F8FAFC] hover:bg-[#0F172A]'
-            }`}
-          >
-            <i className="fas fa-newspaper text-sm text-[#F59E0B]"></i>
-            <span className="truncate">Normal Posts</span>
-            <span
-              className={`text-[11px] px-1.5 py-0.5 rounded-full ${
-                activeTab === 'normal' ? 'bg-[#F59E0B]/20 text-[#F59E0B]' : 'bg-[#1E293B] text-[#94A3B8]'
-              }`}
-            >
-              {counts.normal}
-            </span>
-          </button>
-        </div>
-
-        {/* Search Bar if items exist */}
-        {savedPosts.length > 0 && (
-          <div className="relative">
-            <i className="fas fa-search absolute left-3.5 top-1/2 -translate-y-1/2 text-[#64748B] text-sm"></i>
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={`Search ${activeTab === 'video' ? 'video' : activeTab === 'normal' ? 'normal' : 'all'} saved posts...`}
-              className="w-full bg-[#0B1120] border border-[#1E293B] rounded-xl pl-10 pr-10 py-2.5 text-sm text-[#F8FAFC] placeholder-[#64748B] outline-none focus:border-[#38BDF8] transition-colors"
-            />
-            {searchQuery && (
-              <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#64748B] hover:text-[#F8FAFC] text-sm"
-              >
-                <i className="fas fa-times"></i>
-              </button>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Empty State */}
-      {filteredPosts.length === 0 && (
+      {savedPosts.length === 0 && (
         <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4">
           <div className="bg-[#0B1120] border border-[#1E293B] rounded-2xl p-8 sm:p-12 text-center shadow-md">
             <div className="w-16 h-16 rounded-2xl bg-[#0F172A] border border-[#1E293B] mx-auto mb-4 flex items-center justify-center text-[#F59E0B]">
               <i className="fas fa-bookmark text-2xl"></i>
             </div>
             <h3 className="text-lg font-bold text-[#F8FAFC] mb-1">
-              {searchQuery
-                ? 'No matching saved posts found'
-                : activeTab === 'video'
-                ? 'No saved video posts'
-                : activeTab === 'normal'
-                ? 'No saved normal posts'
-                : 'No saved posts yet'}
+              No saved posts yet
             </h3>
             <p className="text-sm text-[#94A3B8] max-w-md mx-auto mb-5 leading-relaxed">
-              {searchQuery
-                ? `No results match "${searchQuery}". Try a different keyword.`
-                : 'Tap the bookmark icon in the action bar of any post or reel to save it here. Your saved items are preserved locally on this device.'}
+              Tap the bookmark icon in the action bar of any post or reel to save it here. Your saved items are preserved locally on this device.
             </p>
-            {searchQuery ? (
+            {onBack && (
               <button
-                onClick={() => setSearchQuery('')}
-                className="px-4 py-2 bg-[#1E293B] hover:bg-[#334155] text-[#38BDF8] rounded-xl text-xs font-semibold transition-colors"
+                onClick={onBack}
+                className="px-5 py-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-2"
               >
-                Clear search
+                <i className="fas fa-compass"></i>
+                <span>Explore Posts</span>
               </button>
-            ) : (
-              onBack && (
-                <button
-                  onClick={onBack}
-                  className="px-5 py-2.5 bg-[#1877F2] hover:bg-[#166FE5] text-white rounded-xl text-sm font-semibold transition-colors inline-flex items-center gap-2"
-                >
-                  <i className="fas fa-compass"></i>
-                  <span>Explore Posts</span>
-                </button>
-              )
             )}
           </div>
         </div>
       )}
 
       {/* Saved Posts Grid / Feed */}
-      {filteredPosts.length > 0 && (
+      {savedPosts.length > 0 && (
         <>
           {viewMode === 'grid' ? (
             <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4">
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                {filteredPosts.map((item) => {
+                {savedPosts.map((item) => {
                   const post = {
                     ...item.post,
                     id: Number(item.post?.id ?? item.id),
                     post_id: Number(item.post?.post_id ?? item.post?.id ?? item.id),
                   };
-                  const author = post?.author || post?.user || {};
+                  const author = authorOf(post);
                   const authorName = author?.name || post?.name || 'User';
                   const mediaUrl =
                     post?.media_url ||
@@ -370,9 +231,9 @@ export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
               </div>
             </div>
           ) : (
-            /* Fullwidth posts container identical to Feeds.tsx */
+            /* Fullwidth posts container identical to Feeds.tsx and MemoriesPage */
             <div className="w-full flex flex-col divide-y divide-[#1E293B]">
-              {filteredPosts.map((item) => {
+              {savedPosts.map((item) => {
                 const post = {
                   ...item.post,
                   id: Number(item.post?.id ?? item.id),
@@ -383,63 +244,38 @@ export const SavedPostsPage: React.FC<SavedPostsPageProps> = ({
                   // Render video post card
                   return (
                     <div key={`saved-vid-${item.id}`} className="w-full">
-                      <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4 py-1.5 flex items-center justify-between bg-[#0B1120]/60 border-b border-[#1E293B]/40">
-                        <span className="text-xs font-semibold text-[#38BDF8] flex items-center gap-1.5">
-                          <i className="fas fa-play-circle"></i> Video Post
-                        </span>
-                        <button
-                          onClick={() => remove(item.id)}
-                          className="text-xs text-[#94A3B8] hover:text-red-400 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-md hover:bg-red-500/10"
-                        >
-                          <i className="fas fa-trash-alt text-[11px]"></i> Unsave
-                        </button>
-                      </div>
-                      <div className="w-full">
-                        <InstagramVideoCard
-                          reel={post}
-                          currentUser={currentUser}
-                          users={users}
-                          onProfileClick={onProfileClick}
-                          onHashtagClick={() => {}}
-                          onVideoClick={() => onVideoClick?.(post)}
-                          onOpenComments={onOpenComments}
-                          onReact={(postOrId, type) => onReact?.(Number(postOrId?.id ?? postOrId), type)}
-                          onShare={(postId, count) => onShare?.(post)}
-                        />
-                      </div>
+                      <InstagramVideoCard
+                        reel={post}
+                        currentUser={currentUser}
+                        users={users}
+                        onProfileClick={onProfileClick}
+                        onHashtagClick={() => {}}
+                        onVideoClick={() => onVideoClick?.(post)}
+                        onOpenComments={onOpenComments}
+                        onReact={(postOrId, type) => onReact?.(Number(postOrId?.id ?? postOrId), type)}
+                        onShare={(postId, count) => onShare?.(post)}
+                      />
                     </div>
                   );
                 }
 
                 // Render normal post card
+                const author = authorOf(post);
                 return (
                   <div key={`saved-post-${item.id}`} className="w-full">
-                    <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4 py-1.5 flex items-center justify-between bg-[#0B1120]/60 border-b border-[#1E293B]/40">
-                      <span className="text-xs font-semibold text-[#F59E0B] flex items-center gap-1.5">
-                        <i className="fas fa-newspaper"></i> Normal Post
-                      </span>
-                      <button
-                        onClick={() => remove(item.id)}
-                        className="text-xs text-[#94A3B8] hover:text-red-400 flex items-center gap-1 transition-colors px-2 py-0.5 rounded-md hover:bg-red-500/10"
-                      >
-                        <i className="fas fa-trash-alt text-[11px]"></i> Unsave
-                      </button>
-                    </div>
-                    <div className="w-full">
-                      <Post
-                        post={post}
-                        author={post.author || post.user || post}
-                        currentUser={currentUser}
-                        users={users}
-                        onProfileClick={onProfileClick}
-                        onReact={onReact}
-                        onShare={onShare}
-                        onViewImage={onViewImage}
-                        onOpenComments={onOpenComments}
-                        onVideoClick={onVideoClick}
-                        isFollowing={false}
-                      />
-                    </div>
+                    <Post
+                      post={post}
+                      author={author}
+                      currentUser={currentUser}
+                      users={users}
+                      onProfileClick={onProfileClick}
+                      onReact={onReact}
+                      onShare={onShare}
+                      onViewImage={onViewImage}
+                      onOpenComments={onOpenComments}
+                      onVideoClick={onVideoClick}
+                      isFollowing={false}
+                    />
                   </div>
                 );
               })}
