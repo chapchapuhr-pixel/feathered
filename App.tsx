@@ -11411,9 +11411,19 @@ return (
             onReact={(postId: number, type: ReactionType) => onReactPost(postId, type)}
             onShare={(post: any) => handleOpenShareSheet(post)}
             onViewImage={setFullScreenImage}
-            onOpenComments={(postId: number) => {
-              const post = posts.find(p => p.id === postId);
-              if (post) handleOpenComments(post);
+            onOpenComments={(target: any) => {
+              if (target && typeof target === 'object') {
+                handleOpenComments(target);
+              } else if (target) {
+                const targetId = Number(target);
+                const post = allKnownPosts.find((p: any) => Number(p.id) === targetId) ||
+                             posts.find((p: any) => Number(p.id) === targetId);
+                if (post) {
+                  handleOpenComments(post);
+                } else {
+                  handleOpenComments({ id: targetId } as any);
+                }
+              }
             }}
             onVideoClick={handleVideoClick}
             onPlayAudioTrack={onPlayTrack}

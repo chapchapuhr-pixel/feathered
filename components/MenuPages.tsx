@@ -365,161 +365,165 @@ export const MemoriesPage = ({
 
   // ---- UI ----
   return (
-    <div className="w-full max-w-[900px] mx-auto p-4 md:p-6 font-sans pb-20 animate-fade-in">
-      <div className="flex items-center gap-4 mb-6">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="w-10 h-10 rounded-full bg-[#1E293B] hover:bg-[#334155] border border-[#1E293B] text-[#F8FAFC] flex items-center justify-center transition-colors shadow-sm shrink-0"
-            aria-label="Back"
-          >
-            <i className="fas fa-arrow-left text-lg"></i>
-          </button>
-        )}
-        <div className="w-14 h-14 bg-gradient-to-tr from-[#1877F2] to-[#00C6FF] rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3 shrink-0">
-          <i className="fas fa-history text-white text-2xl"></i>
-        </div>
-        <div className="min-w-0">
-          <h1 className="text-3xl font-bold text-white leading-tight">Memories</h1>
-          <p className="text-[#94A3B8]">
-            Relive your past moments — <span className="text-white font-semibold">{getModeDescription()}</span>
-          </p>
-        </div>
-      </div>
-
-      {/* Mode Tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        <button
-          onClick={() => setMode('classic')}
-          className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
-            mode === 'classic' 
-              ? 'bg-[#1877F2] text-white shadow-lg' 
-              : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
-          }`}
-        >
-          <i className="fas fa-calendar-star mr-2"></i> Classic
-        </button>
-
-        <button
-          onClick={() => setMode('last_week_day')}
-          className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
-            mode === 'last_week_day' 
-              ? 'bg-[#1877F2] text-white shadow-lg' 
-              : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
-          }`}
-        >
-          <i className="fas fa-calendar-week mr-2"></i> Same day last week
-        </button>
-
-        <button
-          onClick={() => setMode('last_7_days')}
-          className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
-            mode === 'last_7_days' 
-              ? 'bg-[#1877F2] text-white shadow-lg' 
-              : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
-          }`}
-        >
-          <i className="fas fa-calendar-day mr-2"></i> Past 7 days
-        </button>
-      </div>
-
-      {/* Controls */}
-      <div className="bg-[#0B1120] rounded-2xl border border-[#1E293B] p-4 mb-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center gap-3">
-          {/* Date Picker (only for classic mode) */}
-          {mode === 'classic' && (
-            <div className="flex gap-2 items-center flex-wrap">
-              <span className="text-[#94A3B8] text-sm font-semibold">Pick a date:</span>
-
-              {/* Month */}
-              <select
-                value={selectedMonth}
-                onChange={(e) => setSelectedMonth(Number(e.target.value))}
-                className="bg-[#0F172A] border border-[#1E293B] rounded-lg px-3 py-2 text-[#F8FAFC] outline-none focus:border-[#1877F2] transition-colors"
-              >
-                {Array.from({ length: 12 }).map((_, m) => (
-                  <option key={m} value={m}>
-                    {new Date(2000, m, 1).toLocaleDateString(undefined, { month: "long" })}
-                  </option>
-                ))}
-              </select>
-
-              {/* Day */}
-              <select
-                value={selectedDay}
-                onChange={(e) => setSelectedDay(Number(e.target.value))}
-                className="bg-[#0F172A] border border-[#1E293B] rounded-lg px-3 py-2 text-[#F8FAFC] outline-none focus:border-[#1877F2] transition-colors"
-              >
-                {Array.from({ length: 31 }).map((_, i) => (
-                  <option key={i + 1} value={i + 1}>
-                    {i + 1}
-                  </option>
-                ))}
-              </select>
-
-              <button
-                onClick={() => {
-                  setSelectedMonth(today.getMonth());
-                  setSelectedDay(today.getDate());
-                }}
-                className="px-3 py-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC] font-semibold transition-colors active:scale-95"
-              >
-                <i className="fas fa-calendar-alt mr-2"></i> Today
-              </button>
-            </div>
+    <div className="w-full mx-auto font-sans pb-20 animate-fade-in">
+      <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4 pt-4 md:pt-6">
+        <div className="flex items-center gap-4 mb-6">
+          {onBack && (
+            <button
+              onClick={onBack}
+              className="w-10 h-10 rounded-full bg-[#1E293B] hover:bg-[#334155] border border-[#1E293B] text-[#F8FAFC] flex items-center justify-center transition-colors shadow-sm shrink-0"
+              aria-label="Back"
+            >
+              <i className="fas fa-arrow-left text-lg"></i>
+            </button>
           )}
-
-          <div className="md:ml-auto flex items-center gap-2">
-            <button
-              onClick={() => setOnlyMine(true)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors active:scale-95 flex items-center gap-2 ${
-                onlyMine
-                  ? "bg-[#1877F2] text-white shadow-lg"
-                  : "bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]"
-              }`}
-            >
-              <i className="fas fa-user"></i> My memories
-            </button>
-            <button
-              onClick={() => setOnlyMine(false)}
-              className={`px-4 py-2 rounded-lg font-semibold transition-colors active:scale-95 flex items-center gap-2 ${
-                !onlyMine
-                  ? "bg-[#1877F2] text-white shadow-lg"
-                  : "bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]"
-              }`}
-            >
-              <i className="fas fa-users"></i> All memories
-            </button>
+          <div className="w-14 h-14 bg-gradient-to-tr from-[#1877F2] to-[#00C6FF] rounded-2xl flex items-center justify-center shadow-lg transform -rotate-3 shrink-0">
+            <i className="fas fa-history text-white text-2xl"></i>
+          </div>
+          <div className="min-w-0">
+            <h1 className="text-3xl font-bold text-white leading-tight">Memories</h1>
+            <p className="text-[#94A3B8]">
+              Relive your past moments — <span className="text-white font-semibold">{getModeDescription()}</span>
+            </p>
           </div>
         </div>
 
-        <div className="mt-3 text-[#94A3B8] text-sm">
-          Found <span className="text-white font-bold">{totalMemories}</span> memory(ies) • 
-          <span className="ml-2 text-[#1877F2] font-medium">
-            {mode === 'classic' && `Showing: ${selectedLabel} from previous years`}
-            {mode === 'last_week_day' && 'Showing: Posts from exactly 7 days ago'}
-            {mode === 'last_7_days' && 'Showing: Posts from the past week'}
-          </span>
+        {/* Mode Tabs */}
+        <div className="flex gap-2 mb-6 flex-wrap">
+          <button
+            onClick={() => setMode('classic')}
+            className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
+              mode === 'classic' 
+                ? 'bg-[#1877F2] text-white shadow-lg' 
+                : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
+            }`}
+          >
+            <i className="fas fa-calendar-star mr-2"></i> Classic
+          </button>
+
+          <button
+            onClick={() => setMode('last_week_day')}
+            className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
+              mode === 'last_week_day' 
+                ? 'bg-[#1877F2] text-white shadow-lg' 
+                : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
+            }`}
+          >
+            <i className="fas fa-calendar-week mr-2"></i> Same day last week
+          </button>
+
+          <button
+            onClick={() => setMode('last_7_days')}
+            className={`px-4 py-2.5 rounded-lg font-semibold transition-all active:scale-95 ${
+              mode === 'last_7_days' 
+                ? 'bg-[#1877F2] text-white shadow-lg' 
+                : 'bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]'
+            }`}
+          >
+            <i className="fas fa-calendar-day mr-2"></i> Past 7 days
+          </button>
+        </div>
+
+        {/* Controls */}
+        <div className="bg-[#0B1120] rounded-2xl border border-[#1E293B] p-4 mb-6 shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center gap-3">
+            {/* Date Picker (only for classic mode) */}
+            {mode === 'classic' && (
+              <div className="flex gap-2 items-center flex-wrap">
+                <span className="text-[#94A3B8] text-sm font-semibold">Pick a date:</span>
+
+                {/* Month */}
+                <select
+                  value={selectedMonth}
+                  onChange={(e) => setSelectedMonth(Number(e.target.value))}
+                  className="bg-[#0F172A] border border-[#1E293B] rounded-lg px-3 py-2 text-[#F8FAFC] outline-none focus:border-[#1877F2] transition-colors"
+                >
+                  {Array.from({ length: 12 }).map((_, m) => (
+                    <option key={m} value={m}>
+                      {new Date(2000, m, 1).toLocaleDateString(undefined, { month: "long" })}
+                    </option>
+                  ))}
+                </select>
+
+                {/* Day */}
+                <select
+                  value={selectedDay}
+                  onChange={(e) => setSelectedDay(Number(e.target.value))}
+                  className="bg-[#0F172A] border border-[#1E293B] rounded-lg px-3 py-2 text-[#F8FAFC] outline-none focus:border-[#1877F2] transition-colors"
+                >
+                  {Array.from({ length: 31 }).map((_, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {i + 1}
+                    </option>
+                  ))}
+                </select>
+
+                <button
+                  onClick={() => {
+                    setSelectedMonth(today.getMonth());
+                    setSelectedDay(today.getDate());
+                  }}
+                  className="px-3 py-2 rounded-lg bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC] font-semibold transition-colors active:scale-95"
+                >
+                  <i className="fas fa-calendar-alt mr-2"></i> Today
+                </button>
+              </div>
+            )}
+
+            <div className="md:ml-auto flex items-center gap-2">
+              <button
+                onClick={() => setOnlyMine(true)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors active:scale-95 flex items-center gap-2 ${
+                  onlyMine
+                    ? "bg-[#1877F2] text-white shadow-lg"
+                    : "bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]"
+                }`}
+              >
+                <i className="fas fa-user"></i> My memories
+              </button>
+              <button
+                onClick={() => setOnlyMine(false)}
+                className={`px-4 py-2 rounded-lg font-semibold transition-colors active:scale-95 flex items-center gap-2 ${
+                  !onlyMine
+                    ? "bg-[#1877F2] text-white shadow-lg"
+                    : "bg-[#1E293B] hover:bg-[#334155] text-[#F8FAFC]"
+                }`}
+              >
+                <i className="fas fa-users"></i> All memories
+              </button>
+            </div>
+          </div>
+
+          <div className="mt-3 text-[#94A3B8] text-sm">
+            Found <span className="text-white font-bold">{totalMemories}</span> memory(ies) • 
+            <span className="ml-2 text-[#1877F2] font-medium">
+              {mode === 'classic' && `Showing: ${selectedLabel} from previous years`}
+              {mode === 'last_week_day' && 'Showing: Posts from exactly 7 days ago'}
+              {mode === 'last_7_days' && 'Showing: Posts from the past week'}
+            </span>
+          </div>
         </div>
       </div>
 
       {/* Memories timeline */}
       {memoriesByYear.length === 0 ? (
-        <div className="bg-[#0B1120] rounded-3xl p-10 text-center border border-[#1E293B] shadow-inner">
-          <i className="fas fa-clock text-[#94A3B8] text-4xl mb-4 opacity-50"></i>
-          <h3 className="text-white font-bold text-lg mb-1">No Memories Found</h3>
-          <p className="text-[#94A3B8]">
-            {mode === 'classic' && `You don't have posts from previous years on ${selectedLabel}.`}
-            {mode === 'last_week_day' && "You don't have posts from exactly 7 days ago."}
-            {mode === 'last_7_days' && "You don't have posts from the past 7 days."}
-          </p>
-          <p className="text-[#94A3B8] text-sm mt-2">Try switching to a different mode or changing the date.</p>
+        <div className="w-full max-w-[700px] mx-auto px-4">
+          <div className="bg-[#0B1120] rounded-3xl p-10 text-center border border-[#1E293B] shadow-inner">
+            <i className="fas fa-clock text-[#94A3B8] text-4xl mb-4 opacity-50"></i>
+            <h3 className="text-white font-bold text-lg mb-1">No Memories Found</h3>
+            <p className="text-[#94A3B8]">
+              {mode === 'classic' && `You don't have posts from previous years on ${selectedLabel}.`}
+              {mode === 'last_week_day' && "You don't have posts from exactly 7 days ago."}
+              {mode === 'last_7_days' && "You don't have posts from the past 7 days."}
+            </p>
+            <p className="text-[#94A3B8] text-sm mt-2">Try switching to a different mode or changing the date.</p>
+          </div>
         </div>
       ) : (
-        <div className="space-y-8">
+        <div className="space-y-6 w-full">
           {memoriesByYear.map((group: any) => (
-            <div key={group.year}>
-              <div className="flex items-center justify-between mb-3">
+            <div key={group.year} className="w-full">
+              <div className="w-full max-w-[700px] mx-auto px-3.5 sm:px-4 mb-2.5 flex items-center justify-between">
                 <h2 className="text-xl font-bold text-white flex items-center gap-2">
                   {mode === 'classic' ? (
                     <>
@@ -546,13 +550,15 @@ export const MemoriesPage = ({
                 </span>
               </div>
 
-              <div className="space-y-4">
+              {/* Fullwidth posts container identical to Feeds.tsx */}
+              <div className="w-full flex flex-col">
                 {safeArray(group.posts).map((post: any) => (
                   <Post
                     key={post.id}
                     post={post}
                     author={authorOf(post)}
                     currentUser={currentUser}
+                    users={allUsers}
                     onProfileClick={onProfileClick}
                     onReact={onReact}
                     onShare={onShare}

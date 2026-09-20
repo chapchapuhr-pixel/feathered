@@ -5055,7 +5055,7 @@ export const EventPost = memo(
             <div className="w-full pb-3" onClick={handleCardClick}>
               <div className="w-full border-y border-[#1E293B]/70 hover:border-[#1877F2]/60 overflow-hidden bg-[#050B18] transition-colors cursor-pointer group">
                 {event.cover_url ? (
-                  <div className="w-full min-h-[220px] max-h-[500px] bg-[#050B18] overflow-hidden relative">
+                  <div className="h-48 bg-[#050B18] overflow-hidden relative">
                     <img
                       src={event.cover_url}
                       alt={event.title}
