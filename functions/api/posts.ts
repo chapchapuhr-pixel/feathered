@@ -253,6 +253,20 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     }
 
     if (
+      body?.type === "event" ||
+      body?.event_id != null ||
+      (content && content.includes("Check out my new event:"))
+    ) {
+      return json(
+        {
+          success: false,
+          error: "Events must be created via /api/events, not in the posts table.",
+        },
+        400
+      );
+    }
+
+    if (
       typeof final_media_url === "string" &&
       final_media_url.startsWith("data:")
     ) {

@@ -6992,56 +6992,88 @@ const createReel = useCallback(async (
 
       setPostUploadState((prev) => prev ? ({
         ...prev,
-        progress: 80,
-        secondaryStatus: 'Sharing event announcement to feed...',
+        progress: 85,
+        secondaryStatus: 'Displaying event in feed...',
       }) : null);
 
       try {
-        const eventPostPayload = {
-          user_id: currentUser.id,
-          content: `🎉 Check out my new event: ${newEvent.title}`,
-          type: "event",
-          event_id: newEvent.id,
-          visibility: 'public',
+        // Build the feed event item with interactive buttons (RSVP Going, Interested), date, time, location, etc.
+        // Events are stored exclusively in the events table (/api/events) - NEVER written to the posts table.
+        const eventFeedPost = normalizePost({
+          id: Number(newEvent.id),
+          event_id: Number(newEvent.id),
           feed_key: `event:${newEvent.id}`,
+          type: 'event',
+          item_type: 'event',
+          post_type: 'event',
+          kind: 'event',
+          source: 'event',
+          user_id: Number(currentUser.id),
+          creator_id: Number(currentUser.id),
+          owner_id: Number(currentUser.id),
+          owner_field: 'creator_id',
+          username: currentUser.username,
+          name: currentUser.name || currentUser.username,
+          profile_image_url: currentUser.profile_image_url,
+          is_verified: currentUser.is_verified,
+          role: currentUser.role || 'user',
+          title: newEvent.title,
+          content: newEvent.title,
+          description: newEvent.description,
+          event_description: newEvent.description,
+          event_date: newEvent.date || newEvent.event_date,
+          event_time: newEvent.time,
+          location: newEvent.location,
+          cover_url: newEvent.cover_url || cover,
+          media_url: newEvent.cover_url || cover,
+          media_type: 'image',
+          media_urls: (newEvent.cover_url || cover) ? [newEvent.cover_url || cover] : [],
+          media_types: (newEvent.cover_url || cover) ? ['image'] : [],
+          visibility: newEvent.visibility || 'worldwide',
+          attending_count: 0,
+          interested_count: 0,
+          comments_count: 0,
+          reactions_count: 0,
+          shares: 0,
+          shares_count: 0,
+          views: 0,
+          my_reaction: null,
+          my_rsvp_status: null,
+          created_at: (newEvent as any).created_at || new Date().toISOString(),
+          updated_at: (newEvent as any).updated_at || null,
           meta: {
-            kind: "event",
-            event_id: newEvent.id,
+            type: 'event',
+            kind: 'event',
+            event_id: Number(newEvent.id),
+            title: newEvent.title,
+            description: newEvent.description,
+            event_date: newEvent.date || newEvent.event_date,
+            location: newEvent.location,
+            cover_url: newEvent.cover_url || cover,
+            attending_count: 0,
+            interested_count: 0,
             event: {
-              id: newEvent.id,
+              id: Number(newEvent.id),
               title: newEvent.title,
               description: newEvent.description,
-              date: newEvent.date,
+              date: newEvent.date || newEvent.event_date,
               time: newEvent.time,
               location: newEvent.location,
-              cover_url: newEvent.cover_url,
+              cover_url: newEvent.cover_url || cover,
               attendees: newEvent.attendees || [],
               interested: newEvent.interestedIds || [],
             }
           }
-        };
-
-        const postRes = await apiFetch('/api/posts', { 
-          method: 'POST', 
-          body: JSON.stringify(eventPostPayload) 
         });
-        
-        const newPost = normalizePost(postRes?.post ?? postRes);
-        
+
         setPosts(prev => {
-          const next = [newPost, ...safeArray(prev)];
+          const next = [eventFeedPost, ...safeArray(prev)];
           lastGoodPostsRef.current = next;
           stableFeedRef.current = next;
           return next;
         });
-
-        if (selectedUserId === currentUser.id) {
-          setProfilePosts(prev => [newPost, ...safeArray(prev)]);
-        }
-
-        pushSeenIds([Number(newPost.id)]);
-      } catch (error) {
-        console.error('Failed to create event post:', error);
+      } catch (feedErr) {
+        console.error('Failed to inject event into local feed:', feedErr);
       }
 
       setPostUploadState((prev) => prev ? ({

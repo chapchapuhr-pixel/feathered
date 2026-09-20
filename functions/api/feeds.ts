@@ -292,6 +292,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       AND p.content NOT LIKE '%"kind":"product"%'
       AND p.content NOT LIKE '%"product_id"%'
       AND p.content NOT LIKE '%marketplace%'
+      AND p.content NOT LIKE '%Check out my new event:%'
     ))`);
 
     wherePosts.push(`(
@@ -1574,6 +1575,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
             AND p.content NOT LIKE '%"kind":"product"%'
             AND p.content NOT LIKE '%"product_id"%'
             AND p.content NOT LIKE '%marketplace%'
+            AND p.content NOT LIKE '%Check out my new event:%'
           ))
           AND (
             COALESCE(LOWER(p.media_type), '') NOT LIKE '%video%'

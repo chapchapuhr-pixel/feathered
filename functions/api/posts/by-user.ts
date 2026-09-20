@@ -404,9 +404,15 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       LEFT JOIN users u ON u.id = p.user_id
       WHERE
         p.user_id = ?
+        AND COALESCE(p.is_deleted, 0) = 0
         AND (
           p.visibility IS NULL OR p.visibility = 'public' OR p.visibility = '' OR p.visibility = 'Public'
         )
+        AND (p.content IS NULL OR (
+          p.content NOT LIKE '%"post_type":"product"%'
+          AND p.content NOT LIKE '%"kind":"product"%'
+          AND p.content NOT LIKE '%Check out my new event:%'
+        ))
         AND (
           COALESCE(LOWER(p.media_type), '') NOT LIKE '%video%'
           AND COALESCE(LOWER(p.media_url), '') NOT LIKE '%.mp4%'
