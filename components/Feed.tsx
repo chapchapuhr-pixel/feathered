@@ -1732,12 +1732,12 @@ export const GalleryViewer = memo(
             {urls.map((url, i) => (
               <div
                 key={url + i}
-                className="min-w-full w-full h-full snap-center shrink-0 flex items-center justify-center bg-[#050B18] p-0 m-0 overflow-hidden"
+                className="min-w-full w-full h-full snap-center shrink-0 flex items-center justify-center bg-[#050B18] p-0 m-0 overflow-y-auto overflow-x-hidden"
               >
                 <img
                   src={url}
                   alt=""
-                  className="w-full max-h-full object-contain select-none block p-0 m-0"
+                  className="w-full h-auto select-none block p-0 m-0"
                   draggable={false}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -4053,7 +4053,7 @@ const MediaGrid = memo(
         : undefined;
 
       return (
-        <div className="w-full bg-[#050B18] overflow-hidden flex justify-center">
+        <div className="w-full bg-[#050B18] overflow-hidden flex justify-center p-0 m-0">
           <button
             type="button"
             onClick={(e) => {
@@ -4063,12 +4063,12 @@ const MediaGrid = memo(
                 0
               );
             }}
-            className="w-full block focus:outline-none relative bg-[#162032] min-h-[260px] max-h-[850px] overflow-hidden"
+            className="w-full block focus:outline-none relative bg-[#162032] p-0 m-0 overflow-hidden"
             style={aspectStyle}
           >
             <ProgressiveTileImage
               item={item}
-              className="w-full h-auto max-h-[850px] object-cover mx-auto block"
+              className="w-full h-auto object-contain mx-auto block p-0 m-0"
             />
           </button>
         </div>
@@ -5052,10 +5052,10 @@ export const EventPost = memo(
               </div>
             </div>
 
-            <div className="pb-4 px-3.5 sm:px-4" onClick={handleCardClick}>
-              <div className="border border-[#1E293B] hover:border-[#1877F2]/60 rounded-2xl overflow-hidden bg-[#050B18] transition-colors cursor-pointer group">
+            <div className="w-full pb-3" onClick={handleCardClick}>
+              <div className="w-full border-y border-[#1E293B]/70 hover:border-[#1877F2]/60 overflow-hidden bg-[#050B18] transition-colors cursor-pointer group">
                 {event.cover_url ? (
-                  <div className="h-48 bg-[#050B18] overflow-hidden relative">
+                  <div className="w-full min-h-[220px] max-h-[500px] bg-[#050B18] overflow-hidden relative">
                     <img
                       src={event.cover_url}
                       alt={event.title}
@@ -5526,7 +5526,7 @@ export const EventFeedCard = memo(
 
     return (
       <div className="w-full cursor-pointer" onClick={handleCardClick}>
-        <div className="bg-[#0B1120] rounded-xl overflow-hidden border border-[#1E293B]">
+        <div className="bg-[#0B1120] w-full overflow-hidden border-y border-[#1E293B]">
           <div
             className="flex items-center gap-3 p-3"
             onClick={(e) => e.stopPropagation()}

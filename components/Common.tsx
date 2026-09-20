@@ -83,13 +83,13 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imageUrl, onClose }) =
     return createPortal(
         <div 
             id="full-screen-image-viewer"
-            className="fixed inset-0 z-[99999] bg-black/95 flex items-center justify-center animate-fade-in p-2 sm:p-4 select-none" 
+            className="fixed inset-0 z-[99999] bg-black/95 flex items-center justify-center animate-fade-in p-0 m-0 select-none overflow-y-auto overflow-x-hidden" 
             onClick={onClose}
         >
             <button
                 type="button"
                 id="close-full-image-btn"
-                className="absolute top-4 right-4 w-11 h-11 bg-[#1E293B]/80 hover:bg-[#334155] border border-white/10 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-xl z-[100000] text-white hover:scale-105 active:scale-95"
+                className="fixed top-4 right-4 w-11 h-11 bg-[#1E293B]/80 hover:bg-[#334155] border border-white/10 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-xl z-[100000] text-white hover:scale-105 active:scale-95"
                 onClick={(e) => {
                     e.stopPropagation();
                     onClose();
@@ -101,7 +101,7 @@ export const ImageViewer: React.FC<ImageViewerProps> = ({ imageUrl, onClose }) =
             <img 
                 src={imageUrl} 
                 alt="Full screen preview" 
-                className="max-w-full max-h-screen object-contain shadow-2xl cursor-default rounded-sm" 
+                className="w-full h-auto block p-0 m-0 cursor-default select-none shadow-2xl" 
                 onClick={(e) => e.stopPropagation()} 
             />
         </div>,
