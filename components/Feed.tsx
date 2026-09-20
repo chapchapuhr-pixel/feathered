@@ -1635,35 +1635,52 @@ export const GalleryViewer = memo(
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [currentIndex, setCurrentIndex] = useState(startIndex);
 
+    const goToIndex = (idx: number) => {
+      const nextIdx = Math.max(0, Math.min(urls.length - 1, idx));
+      const el = scrollerRef.current;
+      if (!el) return;
+      const w = el.clientWidth || window.innerWidth;
+      el.scrollTo({ left: nextIdx * w, behavior: 'smooth' });
+      setCurrentIndex(nextIdx);
+    };
+
     useEffect(() => {
       if (!isOpen) return;
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setCurrentIndex(startIndex);
+
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
+        if (e.key === 'ArrowLeft') goToIndex(currentIndex - 1);
+        if (e.key === 'ArrowRight') goToIndex(currentIndex + 1);
       };
       window.addEventListener('keydown', handleKeyDown);
-      requestAnimationFrame(() => {
+
+      const timer = setTimeout(() => {
         const el = scrollerRef.current;
         if (!el) return;
         const w = el.clientWidth || window.innerWidth;
         el.scrollTo({ left: startIndex * w, behavior: 'instant' as any });
-      });
+      }, 30);
+
       return () => {
+        clearTimeout(timer);
         document.body.style.overflow = prevOverflow;
         window.removeEventListener('keydown', handleKeyDown);
       };
-    }, [isOpen, startIndex, onClose]);
+    }, [isOpen, startIndex, onClose, currentIndex, urls.length]);
 
     const handleScroll = () => {
       const el = scrollerRef.current;
       if (!el) return;
       const scrollLeft = el.scrollLeft;
       const width = el.clientWidth || window.innerWidth;
-      const newIndex = Math.round(scrollLeft / width);
-      if (newIndex !== currentIndex) {
-        setCurrentIndex(newIndex);
+      if (width > 0) {
+        const newIndex = Math.round(scrollLeft / width);
+        if (newIndex !== currentIndex && newIndex >= 0 && newIndex < urls.length) {
+          setCurrentIndex(newIndex);
+        }
       }
     };
 
@@ -1675,56 +1692,95 @@ export const GalleryViewer = memo(
 
     if (!isOpen) return null;
 
+    const normalizedPost = {
+      ...post,
+      id: post?.id || (post as any)?.post_id || (post as any)?.product_id,
+    };
+
     return createPortal(
       <div
         id="full-post-gallery-viewer"
-        className="fixed inset-0 z-[99999] bg-black flex flex-col animate-in fade-in duration-150"
+        className="fixed inset-0 z-[99999] bg-[#050B18] flex flex-col animate-in fade-in duration-150"
         onClick={(e) => e.stopPropagation()}
       >
-        <div
-          className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 py-3 bg-black/40"
+        {/* Top Header Bar - Solid Opaque */}
+        <header
+          className="h-14 px-4 sm:px-6 bg-[#0B1120] border-b border-[#1E293B] flex items-center justify-between shrink-0 z-20"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="text-white text-[17px] font-semibold">
-            {currentIndex + 1}/{urls.length}
+          <div className="text-[#F8FAFC] text-base sm:text-[17px] font-semibold tracking-wide">
+            {urls.length > 0 ? `${currentIndex + 1}/${urls.length}` : '1/1'}
           </div>
           <button
-            className="w-10 h-10 rounded-full bg-black/40 flex items-center justify-center"
+            type="button"
+            className="w-9 h-9 rounded-full bg-[#1E293B] hover:bg-[#334155] flex items-center justify-center text-[#CBD5E1] hover:text-white transition-colors cursor-pointer"
             onClick={onClose}
             aria-label="Close"
           >
-            <i className="fas fa-times text-white text-lg"></i>
+            <i className="fas fa-times text-base"></i>
           </button>
-        </div>
+        </header>
 
-        <div
-          ref={scrollerRef}
-          className="flex-1 w-full overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth"
-          style={{ WebkitOverflowScrolling: 'touch' }}
-          onClick={(e) => e.stopPropagation()}
-          onScroll={handleScroll}
-        >
-          {urls.map((url, i) => (
-            <div
-              key={url + i}
-              className="min-w-full h-full snap-center flex items-center justify-center bg-black"
+        {/* Scrollable Images Container - Solid Opaque */}
+        <div className="relative flex-1 w-full overflow-hidden flex items-center justify-center bg-[#050B18]">
+          {urls.length > 1 && currentIndex > 0 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToIndex(currentIndex - 1);
+              }}
+              className="absolute left-3 sm:left-5 z-20 w-10 h-10 rounded-full bg-[#0B1120] hover:bg-[#1E293B] border border-[#1E293B] text-white flex items-center justify-center shadow-2xl transition-transform active:scale-95 cursor-pointer"
+              aria-label="Previous image"
             >
-              <img
-                src={url}
-                alt=""
-                className="max-w-full max-h-full object-contain"
-                draggable={false}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </div>
-          ))}
+              <i className="fas fa-chevron-left text-base"></i>
+            </button>
+          )}
+
+          {urls.length > 1 && currentIndex < urls.length - 1 && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                goToIndex(currentIndex + 1);
+              }}
+              className="absolute right-3 sm:right-5 z-20 w-10 h-10 rounded-full bg-[#0B1120] hover:bg-[#1E293B] border border-[#1E293B] text-white flex items-center justify-center shadow-2xl transition-transform active:scale-95 cursor-pointer"
+              aria-label="Next image"
+            >
+              <i className="fas fa-chevron-right text-base"></i>
+            </button>
+          )}
+
+          <div
+            ref={scrollerRef}
+            className="w-full h-full overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth"
+            style={{ WebkitOverflowScrolling: 'touch' }}
+            onClick={(e) => e.stopPropagation()}
+            onScroll={handleScroll}
+          >
+            {urls.map((url, i) => (
+              <div
+                key={url + i}
+                className="min-w-full h-full snap-center flex items-center justify-center bg-[#050B18] p-2"
+              >
+                <img
+                  src={url}
+                  alt=""
+                  className="max-w-full max-h-full object-contain select-none"
+                  draggable={false}
+                  onClick={(e) => e.stopPropagation()}
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div
-          className="bg-black/80 backdrop-blur-sm border-t border-white/10 px-4 py-3"
+        {/* Bottom Bar - React, Discuss, Share, Save - Solid Opaque */}
+        <footer
+          className="bg-[#0B1120] border-t border-[#1E293B] px-4 sm:px-6 py-3 shrink-0 z-20"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex items-center justify-between text-[#94A3B8] text-[15px] mb-2 px-2">
+          <div className="flex items-center justify-between text-[#94A3B8] text-[15px] mb-2 px-1">
             <div className="flex items-center gap-2">
               {reactionCount > 0 && (
                 <span
@@ -1748,16 +1804,16 @@ export const GalleryViewer = memo(
                 </span>
               )}
             </div>
-            <div className="flex gap-3">
+            <div className="flex gap-4">
               <span
-                className="hover:underline cursor-pointer text-[15px]"
+                className="hover:underline cursor-pointer text-[15px] text-[#CBD5E1]"
                 onClick={onOpenComments}
               >
                 {formatCount(commentCount)} Discussions
               </span>
               {shareCount > 0 && (
                 <span
-                  className="hover:underline cursor-pointer text-[15px]"
+                  className="hover:underline cursor-pointer text-[15px] text-[#CBD5E1]"
                   onClick={onShare}
                 >
                   {formatCount(shareCount)} Shares
@@ -1776,16 +1832,21 @@ export const GalleryViewer = memo(
               />
               <button
                 type="button"
-                className="flex items-center gap-1.5 text-[#F8FAFC] hover:text-[#38BDF8] transition-colors focus:outline-none p-1 rounded-lg hover:bg-[#1E293B]/60"
+                className="flex items-center gap-1.5 text-[#F8FAFC] hover:text-[#38BDF8] transition-colors focus:outline-none p-1 rounded-lg hover:bg-[#1E293B]/60 cursor-pointer"
                 onClick={() => (currentUser ? onOpenComments() : alert('Login first'))}
                 aria-label="Discuss & Comments"
                 title="Discuss"
               >
                 <i className="far fa-comment text-[22px]"></i>
+                {commentCount > 0 && (
+                  <span className="text-[14px] font-semibold text-[#F8FAFC]">
+                    {formatCount(commentCount)}
+                  </span>
+                )}
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1.5 text-[#F8FAFC] hover:text-[#38BDF8] transition-transform active:scale-110 focus:outline-none p-1 rounded-lg hover:bg-[#1E293B]/60"
+                className="flex items-center gap-1.5 text-[#F8FAFC] hover:text-[#38BDF8] transition-transform active:scale-110 focus:outline-none p-1 rounded-lg hover:bg-[#1E293B]/60 cursor-pointer"
                 onClick={() =>
                   currentUser ? onShare() : alert('Please login to share posts.')
                 }
@@ -1793,10 +1854,18 @@ export const GalleryViewer = memo(
                 title="Share"
               >
                 <i className="far fa-paper-plane text-[21px]"></i>
+                {shareCount > 0 && (
+                  <span className="text-[14px] font-semibold text-[#F8FAFC]">
+                    {formatCount(shareCount)}
+                  </span>
+                )}
               </button>
             </div>
+            <div className="flex items-center gap-1.5">
+              <SavePostButton post={normalizedPost} />
+            </div>
           </div>
-        </div>
+        </footer>
       </div>,
       document.body
     );
@@ -1809,7 +1878,8 @@ export const GalleryViewer = memo(
       prev.reactionCount === next.reactionCount &&
       prev.commentCount === next.commentCount &&
       prev.shareCount === next.shareCount &&
-      prev.myReaction === next.myReaction
+      prev.myReaction === next.myReaction &&
+      prev.post === next.post
     );
   }
 );
@@ -6465,13 +6535,9 @@ export const Post = memo(
       
 
     const openGallery = (urls: string[], index: number, directUrl?: string) => {
-      const targetUrl = directUrl || (urls && urls[index]) || (urls && urls[0]) || '';
-      if (onViewImage && targetUrl) {
-        onViewImage(targetUrl);
-        return;
-      }
-      setGalleryUrls(urls.length > 0 ? urls : (targetUrl ? [targetUrl] : []));
-      setGalleryIndex(index >= 0 ? index : 0);
+      const targetList = urls && urls.length > 0 ? urls : directUrl ? [directUrl] : [];
+      setGalleryUrls(targetList);
+      setGalleryIndex(index >= 0 && index < targetList.length ? index : 0);
       setGalleryOpen(true);
     };
 
