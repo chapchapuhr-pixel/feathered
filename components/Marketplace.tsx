@@ -6,6 +6,7 @@ import { MARKETPLACE_CATEGORIES, MARKETPLACE_COUNTRIES } from '../constants';
 import { imageCache, observeForThumbnail, observeForFeed } from '../utils/imageCache';
 import { PostUploadProgressBanner, PostUploadState } from './PostUploadProgress';
 import { PostMenu } from './Post/PostMenu';
+import { VerifiedBadge } from './VerifiedBadge';
 
 // ==================== OPTIMIZED DATA-SAVING MARKETPLACE IMAGE ====================
 
@@ -877,19 +878,37 @@ const LocationSearch: React.FC<LocationSearchProps> = ({
 interface ProductDetailModalProps {
   product: Product;
   currentUser: User | null;
+  users?: User[];
   onClose: () => void;
-  onMessage: (sellerId: number) => void;
+  onMessage: (sellerId: number, product?: Product) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   product: initialProduct,
   currentUser,
+  users,
   onClose,
   onMessage,
 }) => {
   const [product, setProduct] = useState<Product>(initialProduct);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [mainSrc, setMainSrc] = useState('');
+
+  const sellerUser = useMemo(() => {
+    const sid = Number((product as any).seller_id);
+    if (!sid) return null;
+    return users?.find((u) => Number(u.id) === sid) || null;
+  }, [product, users]);
+
+  const sellerIsVerified = Boolean(
+    (product as any).seller_is_verified ||
+    (product as any).is_verified ||
+    sellerUser?.is_verified ||
+    (currentUser && Number(currentUser.id) === Number((product as any).seller_id) && currentUser.is_verified)
+  );
+
+  const sellerName = (product as any).seller_name || sellerUser?.name || (product as any).seller_username || sellerUser?.username || 'Seller';
+  const sellerAvatar = (product as any).seller_avatar || sellerUser?.profile_image_url || '';
 
   useEffect(() => {
     setProduct(initialProduct);
@@ -973,15 +992,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <button onClick={onClose} className="w-10 h-10 rounded-full hover:bg-[#1E293B] flex items-center justify-center">
           <i className="fas fa-arrow-left text-[#F8FAFC] text-xl"></i>
         </button>
-        <div className="text-[#F8FAFC] font-bold text-lg truncate px-3">Marketplace</div>
+        <div className="text-[#F8FAFC] font-bold text-lg truncate px-3">MarketPoint</div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={() => onMessage((product as any).seller_id)}
-            className="w-10 h-10 rounded-full bg-[#1E293B] text-[#1877F2] hover:bg-[#334155] flex items-center justify-center transition-colors"
-            title="Message seller"
-          >
-            <i className="fab fa-facebook-messenger text-lg"></i>
-          </button>
           <PostMenu
             item={{
               ...product,
@@ -1089,21 +1101,51 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         <div className="bg-[#0B1120] border-t border-[#1E293B] px-4 py-4">
           <div className="flex items-center gap-3">
-            <img
-              src={(product as any).seller_avatar}
-              alt="Seller"
-              className="w-12 h-12 rounded-full object-cover bg-[#1E293B]"
-            />
+            {sellerAvatar ? (
+              <img
+                src={sellerAvatar}
+                alt={sellerName}
+                className="w-12 h-12 rounded-full object-cover bg-[#1E293B]"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-[#1E293B] text-[#94A3B8] flex items-center justify-center font-bold text-lg">
+                {sellerName.charAt(0).toUpperCase()}
+              </div>
+            )}
             <div className="min-w-0 flex-1">
-              <div className="text-[#F8FAFC] font-semibold truncate">{(product as any).seller_name}</div>
-              <div className="text-[#94A3B8] text-sm">Seller</div>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <span className="text-[#F8FAFC] font-semibold text-[16px] truncate max-w-[200px]">
+                  {sellerName}
+                </span>
+                {sellerIsVerified && (
+                  <VerifiedBadge size={16} title="Verified Seller" className="inline-flex" />
+                )}
+              </div>
+              <div className="text-[#94A3B8] text-xs mt-0.5">
+                {(product as any).seller_username || sellerUser?.username ? `@${(product as any).seller_username || sellerUser?.username}` : 'Seller'}
+              </div>
             </div>
-            <a
-              href={`tel:${(product as any).phone_number}`}
-              className="w-10 h-10 rounded-full bg-[#1E293B] text-[#F8FAFC] flex items-center justify-center no-underline hover:bg-[#334155] transition-colors"
-            >
-              <i className="fas fa-phone-alt"></i>
-            </a>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                type="button"
+                onClick={() => onMessage(Number((product as any).seller_id), product)}
+                className="w-10 h-10 rounded-full bg-[#1877F2]/15 text-[#1877F2] hover:bg-[#1877F2]/25 active:scale-95 flex items-center justify-center transition-all cursor-pointer"
+                title="Message seller"
+                aria-label="Message seller"
+              >
+                <i className="fab fa-facebook-messenger text-[18px]"></i>
+              </button>
+              {(product as any).phone_number && (
+                <a
+                  href={`tel:${(product as any).phone_number}`}
+                  className="w-10 h-10 rounded-full bg-[#1E293B] text-[#F8FAFC] hover:bg-[#334155] active:scale-95 flex items-center justify-center no-underline transition-all"
+                  title="Call seller"
+                  aria-label="Call seller"
+                >
+                  <i className="fas fa-phone-alt text-[15px]"></i>
+                </a>
+              )}
+            </div>
           </div>
         </div>
 
@@ -1336,7 +1378,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
     setUploadProgressState({
       isUploading: true,
       progress: 15,
-      title: `Listing "${pTitle}" on Marketplace…`,
+      title: `Listing "${pTitle}" on MarketPoint…`,
       secondaryStatus: imgsToUpload.length > 1
         ? `Preparing ${imgsToUpload.length} photos...`
         : 'Preparing listing details...',
@@ -1374,7 +1416,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
       setUploadProgressState((prev) => prev ? ({
         ...prev,
         progress: 88,
-        secondaryStatus: 'Publishing listing to Marketplace catalog...',
+        secondaryStatus: 'Publishing listing to MarketPoint catalog...',
       }) : null);
 
       const uploadedUrls = uploadedVariants.map((x) => x.feed).filter(Boolean);
@@ -1413,7 +1455,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
         isSuccess: true,
         progress: 100,
         title: 'Item listed successfully!',
-        secondaryStatus: 'Your product is now live on Marketplace.',
+        secondaryStatus: 'Your product is now live on MarketPoint.',
       }) : null);
 
       setTimeout(() => {
@@ -1500,7 +1542,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
             >
               <i className="fas fa-arrow-left text-[#F8FAFC] text-xl"></i>
             </button>
-            <h1 className="text-[20px] font-bold text-[#F8FAFC] truncate">Marketplace</h1>
+            <h1 className="text-[20px] font-bold text-[#F8FAFC] truncate">MarketPoint</h1>
           </div>
 
           <div className="flex items-center gap-2 flex-shrink-0">
@@ -1678,7 +1720,7 @@ export const MarketplacePage: React.FC<MarketplacePageProps> = ({
                 <input
                   autoFocus
                   type="text"
-                  placeholder="Search Marketplace..."
+                  placeholder="Search MarketPoint..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full bg-[#0F172A] border border-[#1E293B] rounded-full py-3 pl-11 pr-11 text-[#F8FAFC] outline-none focus:border-[#1877F2]"

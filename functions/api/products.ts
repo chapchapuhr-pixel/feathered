@@ -122,7 +122,7 @@ export const onRequestPost: PagesFunction = async ({ request, env }: any) => {
 
     const created = await env.DB.prepare(`
       SELECT p.*, u.name AS seller_name, u.username AS seller_username,
-             u.profile_image_url AS seller_avatar
+             u.profile_image_url AS seller_avatar, u.is_verified AS seller_is_verified
       FROM products p
       JOIN users u ON u.id = p.seller_id
       WHERE p.id = ?
@@ -147,7 +147,7 @@ export const onRequestGet: PagesFunction = async ({ env }: any) => {
   try {
     const { results } = await env.DB.prepare(`
       SELECT p.*, u.name AS seller_name, u.username AS seller_username,
-             u.profile_image_url AS seller_avatar
+             u.profile_image_url AS seller_avatar, u.is_verified AS seller_is_verified
       FROM products p
       JOIN users u ON u.id = p.seller_id
       WHERE COALESCE(p.is_deleted, 0) = 0
@@ -292,7 +292,7 @@ const handleEditProduct = async (request: Request, env: any): Promise<Response> 
 
     const updated = await env.DB.prepare(`
       SELECT p.*, u.name AS seller_name, u.username AS seller_username,
-             u.profile_image_url AS seller_avatar
+             u.profile_image_url AS seller_avatar, u.is_verified AS seller_is_verified
       FROM products p
       JOIN users u ON u.id = p.seller_id
       WHERE p.id = ?

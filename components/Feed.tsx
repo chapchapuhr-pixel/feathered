@@ -819,7 +819,7 @@ const getMarketplacePriceLine = (productData?: any, p?: any) => {
       p.location.split(',')[0]) ||
     (typeof p?.address === 'string' &&
       p.address.split(',')[0]) ||
-    'Marketplace';
+    'MarketPoint';
   const priceNum = priceRaw != null ? Number(priceRaw) : NaN;
   const price = Number.isFinite(priceNum) ? priceNum.toFixed(0) : null;
   return { price, currency, loc };
@@ -6681,7 +6681,7 @@ export const Post = memo(
             {isMarketplace && (
               <div className="px-4 pb-2 flex items-center gap-2 text-[#F8FAFC]">
                 <span className="text-[#1877F2] font-bold text-[15px] bg-[#1877F2]/10 px-2 py-1 rounded-full">
-                  Marketplace
+                  MarketPoint
                 </span>
                 {loc && (
                   <div className="flex items-center gap-1 text-[#94A3B8]">
@@ -6694,12 +6694,22 @@ export const Post = memo(
 
             {isMarketplace && (p.title || productData?.title || p.content) && (
               <div className="px-3 md:px-4 pb-2">
-                <div className="text-[#F8FAFC] font-semibold text-[17px]">
+                <div
+                  style={{ fontSize: '19.5px' }}
+                  className="text-[#F8FAFC] font-semibold leading-snug"
+                >
                   {p.title || productData?.title || p.content}
                 </div>
                 {(p.description || productData?.description) && (
-                  <div className="text-[#94A3B8] text-[14px] mt-0.5 line-clamp-2">
-                    {p.description || productData?.description}
+                  <div className="mt-1">
+                    <ExpandableRichText
+                      text={p.description || productData?.description}
+                      users={users}
+                      onProfileClick={onProfileClick}
+                      onHashtagClick={onHashtagClick}
+                      maxWords={14}
+                      fontSizePx={16}
+                    />
                   </div>
                 )}
               </div>
@@ -9712,7 +9722,7 @@ export const SuggestedProductsWidget = memo(
       <div className="w-full">
         <div className="bg-[#0B1120] w-full p-4">
           <div className="flex justify-between items-center mb-3">
-            <h3 className="text-[#F8FAFC] font-bold text-[21px]">Marketplace for you</h3>
+            <h3 className="text-[#F8FAFC] font-bold text-[21px]">MarketPoint for you</h3>
             <button
               onClick={onSeeAll}
               className="text-[#1877F2] font-bold text-[17px] hover:bg-[#1E293B] px-2 py-1 rounded transition-colors"

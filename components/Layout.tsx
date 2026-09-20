@@ -43,7 +43,7 @@ export const MenuOverlay: React.FC<MenuOverlayProps> = ({
   const navigate = useNavigate();
 
   const menuItems = [
-    { id: 'marketplace', title: 'Marketplace', icon: 'fas fa-store', color: '#1877F2' },
+    { id: 'marketplace', title: 'MarketPoint', icon: 'fas fa-store', color: '#1877F2' },
     { id: 'saved-posts', title: 'Saved Posts', icon: 'fas fa-bookmark', color: '#F59E0B' },
     { id: 'events', title: 'Events', icon: 'fas fa-calendar-alt', color: '#2563EB' },
     { id: 'profiles', title: 'Profiles', icon: 'fas fa-user-friends', color: '#1877F2' },
@@ -306,11 +306,11 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
           {isHomeActive && <span className="w-1.5 h-1 rounded-full bg-[#1877F2] mt-0.5" />}
         </button>
 
-        {/* 2. Market (remapped from Product) */}
+        {/* 2. MarketPoint */}
         <button
           onClick={onMarketplaceClick}
           className="flex flex-col items-center justify-center flex-1 h-full pt-1 transition-all duration-150 active:scale-95 group focus:outline-none cursor-pointer"
-          aria-label="Market"
+          aria-label="MarketPoint"
         >
           <div className="relative flex items-center justify-center">
             <i
@@ -329,7 +329,7 @@ export const BottomNavigation: React.FC<BottomNavigationProps> = ({
               isMarketActive ? 'text-[#1877F2] font-bold' : 'text-[#94A3B8] group-hover:text-[#F8FAFC]'
             }`}
           >
-            Market
+            MarketPoint
           </span>
           {isMarketActive && <span className="w-1.5 h-1 rounded-full bg-[#1877F2] mt-0.5" />}
         </button>
@@ -582,7 +582,7 @@ export const Header: React.FC<HeaderProps> = ({
 
     // 3. Shortcuts / pages / more
     const allFeatures = [
-      { id: 'marketplace', title: 'Marketplace', icon: 'fas fa-store', color: '#10B981', desc: 'Browse and sell items', action: () => onMarketplaceClick() },
+      { id: 'marketplace', title: 'MarketPoint', icon: 'fas fa-store', color: '#10B981', desc: 'Browse and sell items', action: () => onMarketplaceClick() },
       { id: 'groups', title: 'Groups', icon: 'fas fa-users', color: '#1877F2', desc: 'Discover and join communities', action: () => onGroupsClick() },
       { id: 'reels', title: 'Videos', icon: 'fas fa-play-circle', color: '#1877F2', desc: 'Watch trending videos & reels', action: () => onReelsClick() },
       { id: 'music', title: 'F-Music', icon: 'fas fa-music', color: '#1877F2', desc: 'Listen to songs and audio tracks', action: () => onNavigate('music') },
@@ -666,7 +666,7 @@ export const Header: React.FC<HeaderProps> = ({
 
           {/* RIGHT: Search, Notifications (Carrot Orange Badge), Profile / Login */}
           <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
-            {/* 1. Marketplace Button */}
+            {/* 1. MarketPoint Button */}
             <button
               onClick={onMarketplaceClick}
               className={`w-11 h-11 sm:w-12 sm:h-12 rounded-full bg-white/[0.08] border border-white/30 transition-all duration-150 flex items-center justify-center relative flex-shrink-0 focus:outline-none focus:ring-2 focus:ring-white/40 shadow-md shadow-black/25 active:scale-95 group backdrop-blur-md ${
@@ -674,8 +674,8 @@ export const Header: React.FC<HeaderProps> = ({
                   ? 'bg-white/[0.22] ring-2 ring-white/60 border-white/60 shadow-[0_0_15px_rgba(255,255,255,0.35)]'
                   : 'hover:bg-white/[0.18] hover:border-white/50'
               }`}
-              aria-label="Marketplace"
-              title="Marketplace"
+              aria-label="MarketPoint"
+              title="MarketPoint"
             >
               <i className="fas fa-store text-[20px] sm:text-[22px] text-white group-hover:scale-105 transition-transform" />
               {Number(badgeCounts?.marketplace || 0) > 0 && (
@@ -1158,7 +1158,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     { id: 'saved', label: 'Saved', icon: 'fas fa-bookmark', color: '#F59E0B', onClick: onSavedPostsClick },
     { id: 'story-feed', label: 'Story Feed', icon: 'fas fa-layer-group', color: '#34D399', onClick: onStoryFeedClick },
     { id: 'groups', label: 'Groups', icon: 'fas fa-users', color: '#38BDF8', onClick: onGroupsClick },
-    { id: 'marketplace', label: 'Marketplace', icon: 'fas fa-store', color: '#1877F2', onClick: onMarketplaceClick },
+    { id: 'marketplace', label: 'MarketPoint', icon: 'fas fa-store', color: '#1877F2', onClick: onMarketplaceClick },
     { id: 'reels', label: 'Videos', icon: 'fas fa-play-circle', color: '#1877F2', onClick: onReelsClick },
     { id: 'events', label: 'Events', icon: 'fas fa-calendar-alt', color: '#2563EB', onClick: onEventsClick },
     { id: 'ads', label: 'Ad Dashboard', icon: 'fas fa-chart-line', color: '#10B981', onClick: onAdsClick },

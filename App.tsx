@@ -5911,6 +5911,66 @@ const navigateTo = useCallback((target: View) => {
     }
   }, [currentUser, activeChatUser]);
 
+  const handleOpenChatWithProduct = useCallback(async (recipient: User, product: Product) => {
+    if (!requireAuth('Messaging')) return;
+    if (!currentUser) return;
+
+    if (Number(currentUser.id) === Number((product as any)?.seller_id || recipient.id)) {
+      alert('This is your own product listing.');
+      return;
+    }
+
+    setActiveProduct(null);
+    if (isChatsListOpen) {
+      setIsChatsListOpen(false);
+    }
+
+    setActiveChatUser(recipient);
+    setIsChatOpen(true);
+
+    const pTitle = (product as any)?.title || 'Product';
+    const pId = (product as any)?.id;
+    const inquiryText = `${pTitle}: Hello, I am interested in this product. Is it still available?${pId ? ` [product:${pId}]` : ''}`;
+
+    try {
+      await apiFetch('/api/messages/send', {
+        method: 'POST',
+        body: JSON.stringify({
+          recipient_id: recipient.id,
+          text_content: inquiryText,
+        }),
+      });
+      window.dispatchEvent(new CustomEvent('new_message_sent', {
+        detail: { recipient_id: recipient.id, text_content: inquiryText }
+      }));
+    } catch (error) {
+      console.error('Failed to send product inquiry:', error);
+    }
+  }, [currentUser, requireAuth, isChatsListOpen]);
+
+  const handleOpenProductById = useCallback(async (productId: number) => {
+    setIsChatOpen(false);
+    setIsChatsListOpen(false);
+
+    let prod = products.find((p) => Number(p.id) === Number(productId));
+    if (!prod) {
+      try {
+        const res = await apiFetch(`/api/products?id=${productId}`);
+        if (res?.product) {
+          prod = normalizeProduct(res.product);
+          setProducts((prev) => [prod, ...safeArray(prev)]);
+        }
+      } catch (err) {
+        console.error('Failed to load product for viewing:', err);
+      }
+    }
+
+    if (prod) {
+      navigateTo('marketplace');
+      setActiveProduct(prod);
+    }
+  }, [products, navigateTo]);
+
   const fetchUsersList = useCallback(async () => {
     if (usersInFlightRef.current) return;
     usersInFlightRef.current = true;
@@ -11823,13 +11883,19 @@ return (
       <ProductDetailModal
         product={activeProduct}
         currentUser={currentUser}
+        users={users}
         onClose={() => setActiveProduct(null)}
-        onMessage={(id) => {
+        onMessage={(id, prod) => {
           if (!requireAuth('Messaging')) return;
-          const recipient = users.find((u) => u.id === id);
-          if (recipient) {
-            handleOpenChat(recipient);
-          }
+          const targetProduct = prod || activeProduct;
+          const recipient = users.find((u) => Number(u.id) === Number(id)) || ({
+            id: Number(id),
+            name: (targetProduct as any)?.seller_name || 'Seller',
+            username: (targetProduct as any)?.seller_username || 'seller',
+            profile_image_url: (targetProduct as any)?.seller_avatar || '',
+            is_verified: Boolean((targetProduct as any)?.seller_is_verified),
+          } as User);
+          handleOpenChatWithProduct(recipient, targetProduct);
         }}
       />
     )}
@@ -12195,6 +12261,7 @@ return (
         recipient={activeChatUser}
         onClose={handleCloseChat}
         onSendMessage={handleSendMessage}
+        onViewProduct={handleOpenProductById}
       />
     )}
 

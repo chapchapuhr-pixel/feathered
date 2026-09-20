@@ -252,6 +252,19 @@ const stripUrlsFromText = (text: string) => {
   return (text || "").replace(urlRegex, "").replace(/\s+/g, " ").trim();
 };
 
+const parseProductInMessage = (text: string): { productId: number; productTitle?: string; cleanText: string } | null => {
+  if (!text) return null;
+  const match = text.match(/\[product(?::|\s+#?)\s*(\d+)\]/i);
+  if (match) {
+    const productId = Number(match[1]);
+    const withoutTag = text.replace(match[0], '').trim();
+    const colonMatch = withoutTag.match(/^([^:\n]{1,80}):\s*([\s\S]*)$/);
+    const productTitle = colonMatch ? colonMatch[1].trim() : undefined;
+    return { productId, productTitle, cleanText: withoutTag };
+  }
+  return null;
+};
+
 const isGifUrl = (url: string) => {
   const u = (url || "").toLowerCase();
   if (!u) return false;
@@ -957,6 +970,7 @@ type ChatWindowProps = {
   recipient: User;
   onClose: () => void;
   onSendMessage?: (t: string, s?: string) => void;
+  onViewProduct?: (productId: number) => void;
 };
 
 type ActionModalState =
@@ -974,7 +988,7 @@ type ActionModalState =
 /* ============================================================
    ✅ Main ChatWindow
 ============================================================ */
-export const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, recipient, onClose, onSendMessage }) => {
+export const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, recipient, onClose, onSendMessage, onViewProduct }) => {
   const currentUserId = safeNum((currentUser as any)?.id);
   const recipientId = safeNum((recipient as any)?.id);
 
@@ -2214,10 +2228,12 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, recipient, 
           const msg = r.msg as any;
           const mine = safeNum(msg?.sender_id) === safeNum((currentUser as any)?.id);
           const rawText = safeStr(msg?.text_content);
-          const urls = extractUrls(rawText);
+          const productRef = parseProductInMessage(rawText);
+          const textWithoutProductTag = productRef ? productRef.cleanText : rawText;
+          const urls = extractUrls(textWithoutProductTag);
           const gifUrls = urls.filter((u) => isGifUrl(u));
           const otherUrls = urls.filter((u) => !gifUrls.includes(u));
-          const text = stripUrlsFromText(rawText);
+          const text = stripUrlsFromText(textWithoutProductTag);
           const d = parseDate(msg?.created_at);
           const edited = !!msg?.edited_at;
           const attachments = Array.isArray(msg?.attachments) ? msg.attachments : [];
@@ -2257,6 +2273,41 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ currentUser, recipient, 
                         <div className={`text-[11px] font-bold ${mine ? "text-white/90" : "text-[#0084FF]"}`}>Reply</div>
                         <div className={`text-[12px] truncate max-w-[200px] ${mine ? "text-white/85" : "text-[#8E8E93]"}`}>
                           {safeStr(parent?.text_content) || (Array.isArray(parent?.attachments) && parent.attachments.length ? "📎 Attachment" : "…")}
+                        </div>
+                      </div>
+                    )}
+                    {productRef && (
+                      <div
+                        role="button"
+                        tabIndex={0}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onViewProduct?.(productRef.productId);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' || e.key === ' ') {
+                            e.stopPropagation();
+                            onViewProduct?.(productRef.productId);
+                          }
+                        }}
+                        className={`mb-2 p-2.5 rounded-xl transition-all cursor-pointer flex items-center gap-2.5 border text-left active:scale-[0.98] ${
+                          mine
+                            ? 'bg-black/25 hover:bg-black/35 border-white/20 text-white'
+                            : 'bg-[#1877F2]/15 hover:bg-[#1877F2]/25 border-[#1877F2]/30 text-white'
+                        }`}
+                        title="Click to view product on MarketPoint"
+                      >
+                        <div className="w-10 h-10 rounded-lg bg-[#0F172A] border border-white/10 flex items-center justify-center shrink-0 text-[#1877F2]">
+                          <i className="fas fa-store text-[18px]"></i>
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-[11px] font-semibold text-[#38BDF8] flex items-center gap-1">
+                            <span>MarketPoint Listing</span>
+                            <i className="fas fa-arrow-up-right-from-square text-[9px]"></i>
+                          </div>
+                          <div className="text-[13.5px] font-bold text-white truncate">
+                            {productRef.productTitle || `Product #${productRef.productId}`}
+                          </div>
                         </div>
                       </div>
                     )}
