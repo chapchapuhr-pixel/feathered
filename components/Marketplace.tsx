@@ -881,6 +881,7 @@ interface ProductDetailModalProps {
   users?: User[];
   onClose: () => void;
   onMessage: (sellerId: number, product?: Product) => void;
+  onProfileClick?: (userId: number) => void;
 }
 
 export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
@@ -889,6 +890,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   users,
   onClose,
   onMessage,
+  onProfileClick,
 }) => {
   const [product, setProduct] = useState<Product>(initialProduct);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
@@ -1105,24 +1107,50 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <img
                 src={sellerAvatar}
                 alt={sellerName}
-                className="w-12 h-12 rounded-full object-cover bg-[#1E293B]"
+                onClick={() => {
+                  const sid = Number((product as any).seller_id);
+                  if (sid && onProfileClick) {
+                    onClose();
+                    onProfileClick(sid);
+                  }
+                }}
+                className={`w-13 h-13 rounded-full object-cover bg-[#1E293B] shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
               />
             ) : (
-              <div className="w-12 h-12 rounded-full bg-[#1E293B] text-[#94A3B8] flex items-center justify-center font-bold text-lg">
+              <div
+                onClick={() => {
+                  const sid = Number((product as any).seller_id);
+                  if (sid && onProfileClick) {
+                    onClose();
+                    onProfileClick(sid);
+                  }
+                }}
+                className={`w-13 h-13 rounded-full bg-[#1E293B] text-[#94A3B8] flex items-center justify-center font-bold text-xl shrink-0 ${onProfileClick ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+              >
                 {sellerName.charAt(0).toUpperCase()}
               </div>
             )}
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[#F8FAFC] font-semibold text-[16px] truncate max-w-[200px]">
+                <span
+                  style={{ fontSize: '21px' }}
+                  onClick={() => {
+                    const sid = Number((product as any).seller_id);
+                    if (sid && onProfileClick) {
+                      onClose();
+                      onProfileClick(sid);
+                    }
+                  }}
+                  className={`text-[#F8FAFC] font-bold text-[21px] leading-tight truncate max-w-[220px] sm:max-w-[280px] ${onProfileClick ? 'cursor-pointer hover:underline' : ''}`}
+                >
                   {sellerName}
                 </span>
                 {sellerIsVerified && (
-                  <VerifiedBadge size={16} title="Verified Seller" className="inline-flex" />
+                  <VerifiedBadge size={19} title="Verified Seller" className="inline-flex shrink-0" />
                 )}
               </div>
-              <div className="text-[#94A3B8] text-xs mt-0.5">
-                {(product as any).seller_username || sellerUser?.username ? `@${(product as any).seller_username || sellerUser?.username}` : 'Seller'}
+              <div className="text-[#94A3B8] text-[15px] font-medium mt-0.5">
+                Seller
               </div>
             </div>
             <div className="flex items-center gap-2 shrink-0">

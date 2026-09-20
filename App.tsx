@@ -11885,6 +11885,10 @@ return (
         currentUser={currentUser}
         users={users}
         onClose={() => setActiveProduct(null)}
+        onProfileClick={(sellerId) => {
+          setActiveProduct(null);
+          openProfile(sellerId);
+        }}
         onMessage={(id, prod) => {
           if (!requireAuth('Messaging')) return;
           const targetProduct = prod || activeProduct;
