@@ -333,8 +333,17 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
 
   // Unique video ID for global single-playback coordination
   const cardVideoId = useMemo(() => {
-    return String(reelId || post?.reel_id || post?.id || post?.video_url || Math.random());
-  }, [reelId, post?.reel_id, post?.id, post?.video_url]);
+    return String(
+      reelId ||
+      activePost?.reel_id ||
+      activePost?.id ||
+      activePost?.video_url ||
+      post?.reel_id ||
+      post?.id ||
+      post?.video_url ||
+      Math.random()
+    );
+  }, [reelId, activePost?.reel_id, activePost?.id, activePost?.video_url, post?.reel_id, post?.id, post?.video_url]);
 
   // Global single-video playback coordinator: pause immediately if another video starts
   useEffect(() => {
@@ -872,13 +881,13 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
               )}
               <span className="text-[#64748B] text-[13px]">•</span>
               <span className="text-[#94A3B8] text-[12.5px]">
-                {formatRelativeTime(post.created_at || post.timestamp)}
+                {formatRelativeTime(activePost?.created_at || activePost?.timestamp || post?.created_at || post?.timestamp)}
               </span>
             </div>
             <div className="flex items-center gap-1 text-[12px] text-[#94A3B8]">
               <i className="fas fa-music text-[10px] text-[#38BDF8]"></i>
               <span className="truncate max-w-[180px] sm:max-w-[240px]">
-                {post.song_name || 'Original Audio'} • {authorName}
+                {activePost?.song_name || post?.song_name || 'Original Audio'} • {authorName}
               </span>
             </div>
           </div>
@@ -993,7 +1002,7 @@ export const InstagramVideoCard: React.FC<InstagramVideoCardProps> = ({
           <div className="bg-black/50 backdrop-blur-md border border-white/10 text-white text-[11px] px-2.5 py-1 rounded-full flex items-center gap-1.5 shadow-md">
             <i className="fas fa-volume-up text-[#38BDF8] text-[10px]"></i>
             <span className="truncate">
-              {post.song_name || 'Original Audio'} - {authorName}
+              {activePost?.song_name || post?.song_name || 'Original Audio'} - {authorName}
             </span>
           </div>
         </div>

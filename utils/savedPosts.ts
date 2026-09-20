@@ -49,6 +49,40 @@ export const isPostSaved = (id: string | number): boolean => {
   return list.some((item) => String(item.id) === String(id));
 };
 
+const sanitizePostForStorage = (p: any): any => {
+  if (!p || typeof p !== 'object') return p;
+  try {
+    return JSON.parse(
+      JSON.stringify(p, (key, value) => {
+        if (key && (key.startsWith('_') || key.startsWith('$'))) return undefined;
+        if (typeof value === 'function') return undefined;
+        return value;
+      })
+    );
+  } catch {
+    return {
+      id: p.id,
+      post_id: p.post_id || p.id,
+      reel_id: p.reel_id,
+      content: p.content,
+      caption: p.caption,
+      media_url: p.media_url,
+      video_url: p.video_url,
+      reel_url: p.reel_url,
+      media_urls: Array.isArray(p.media_urls) ? p.media_urls : [],
+      media_type: p.media_type,
+      type: p.type,
+      user_id: p.user_id,
+      user: p.user ? { id: p.user.id, name: p.user.name, username: p.user.username, profile_image_url: p.user.profile_image_url } : undefined,
+      author: p.author ? { id: p.author.id, name: p.author.name, username: p.author.username, profile_image_url: p.author.profile_image_url } : undefined,
+      reactions_count: p.reactions_count || 0,
+      comments_count: p.comments_count || 0,
+      shares_count: p.shares_count || 0,
+      created_at: p.created_at || new Date().toISOString(),
+    };
+  }
+};
+
 /**
  * Toggle saved status for a post. Returns true if now saved, false if removed.
  */
@@ -72,7 +106,7 @@ export const toggleSavePost = (post: any, explicitIsVideo?: boolean): boolean =>
       id: post.id,
       type: isVideo ? 'video' : 'normal',
       savedAt: Date.now(),
-      post: post,
+      post: sanitizePostForStorage(post),
     };
     updatedList = [newItem, ...list];
     nowSaved = true;
