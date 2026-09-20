@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import {
   X,
   Image as ImageIcon,
@@ -56,6 +57,20 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
     Boolean(post.main_price !== undefined || post.price !== undefined);
 
   const postId = post.id || post.post_id || post.event_id || post.product_id;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen, onClose]);
 
   // Text / Caption state
   const [content, setContent] = useState<string>(() => {
@@ -372,7 +387,7 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
 
   const pageTitle = isProduct ? 'Edit Product' : isEvent ? 'Edit Event' : 'Edit Post';
 
-  return (
+  return createPortal(
     <div
       id="edit-post-fullpage-panel"
       className="fixed inset-0 z-[99999] bg-[#050B18] text-[#F8FAFC] flex flex-col w-full h-full overflow-hidden animate-in fade-in duration-150"
@@ -786,6 +801,7 @@ export const EditPostModal: React.FC<EditPostModalProps> = ({
           </div>
         )}
       </main>
-    </div>
+    </div>,
+    document.body
   );
 };

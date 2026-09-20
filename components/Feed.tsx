@@ -8,6 +8,7 @@ import React, {
   useContext,
   memo,
 } from 'react';
+import { createPortal } from 'react-dom';
 import {
   User,
   Post as PostType,
@@ -1636,8 +1637,13 @@ export const GalleryViewer = memo(
 
     useEffect(() => {
       if (!isOpen) return;
+      const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setCurrentIndex(startIndex);
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') onClose();
+      };
+      window.addEventListener('keydown', handleKeyDown);
       requestAnimationFrame(() => {
         const el = scrollerRef.current;
         if (!el) return;
@@ -1645,9 +1651,10 @@ export const GalleryViewer = memo(
         el.scrollTo({ left: startIndex * w, behavior: 'instant' as any });
       });
       return () => {
-        document.body.style.overflow = '';
+        document.body.style.overflow = prevOverflow;
+        window.removeEventListener('keydown', handleKeyDown);
       };
-    }, [isOpen, startIndex]);
+    }, [isOpen, startIndex, onClose]);
 
     const handleScroll = () => {
       const el = scrollerRef.current;
@@ -1668,9 +1675,10 @@ export const GalleryViewer = memo(
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
       <div
-        className="fixed inset-0 z-[9999] bg-black flex flex-col"
+        id="full-post-gallery-viewer"
+        className="fixed inset-0 z-[99999] bg-black flex flex-col animate-in fade-in duration-150"
         onClick={(e) => e.stopPropagation()}
       >
         <div
@@ -1789,7 +1797,8 @@ export const GalleryViewer = memo(
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   },
   (prev, next) => {
@@ -6455,9 +6464,14 @@ export const Post = memo(
       
       
 
-    const openGallery = (urls: string[], index: number) => {
-      setGalleryUrls(urls);
-      setGalleryIndex(index);
+    const openGallery = (urls: string[], index: number, directUrl?: string) => {
+      const targetUrl = directUrl || (urls && urls[index]) || (urls && urls[0]) || '';
+      if (onViewImage && targetUrl) {
+        onViewImage(targetUrl);
+        return;
+      }
+      setGalleryUrls(urls.length > 0 ? urls : (targetUrl ? [targetUrl] : []));
+      setGalleryIndex(index >= 0 ? index : 0);
       setGalleryOpen(true);
     };
 
@@ -6829,7 +6843,7 @@ export const Post = memo(
                       <MediaGrid
                         media={marketplaceGridData.mediaForGrid}
                         onOpen={(url, index) => {
-                          openGallery(marketplaceGridData.galleryUrls, index);
+                          openGallery(marketplaceGridData.galleryUrls, index, url);
                         }}
                       />
                     </div>
@@ -6994,7 +7008,7 @@ export const Post = memo(
                     }))}
                     onOpen={(url, index) => {
                       const urls = imageMedia.map((m) => m.full || m.feed || m.url);
-                      openGallery(urls, index);
+                      openGallery(urls, index, url);
                     }}
                   />
                 )}
@@ -8385,6 +8399,7 @@ export const CommentsSheet = memo(
   onRSVP,
   onEventClick,
   onOpenReactions,
+  onViewImage,
 }: {
   post: PostType;
   currentUser: User;
@@ -8410,6 +8425,7 @@ export const CommentsSheet = memo(
   onRSVP?: (eventId: number, status: 'going' | 'interested' | 'not_going') => Promise<void>;
   onEventClick?: (eventId: number) => void;
   onOpenReactions?: (post: PostType) => void;
+  onViewImage?: (url: string) => void;
 }) => {
   const p: any = post as any;
   const postId = getFeedItemId(p);
@@ -9404,7 +9420,7 @@ export const CommentsSheet = memo(
               onProfileClick={onProfileClick}
               onReact={onReact}
               onShare={onShare}
-              onViewImage={() => {}}
+              onViewImage={onViewImage || (() => {})}
               onOpenComments={() => {}}
               onVideoClick={onVideoClick}
               onPlayAudioTrack={onOpenAudio}

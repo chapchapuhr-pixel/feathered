@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { performPostAction } from "../../postActionRegistry";
 import { EditPostModal } from "./EditPostModal";
-import { Edit, Trash2, Share2, Flag, AlertCircle, Loader2 } from "lucide-react";
+import { Edit, Trash2, Share2, Flag, AlertCircle, Loader2, ArrowLeft } from "lucide-react";
 
 export type PostMenuProps = {
   item: any;
@@ -46,6 +47,21 @@ export const PostMenu: React.FC<PostMenuProps> = ({
   const canEdit = isOwner && !isSong && !isStory;
 
   // Close menu when clicking outside
+  // Lock body scroll when delete full-page is open
+  useEffect(() => {
+    if (!showDeleteConfirm) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowDeleteConfirm(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [showDeleteConfirm]);
+
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
       if (!menuRef.current?.contains(e.target as Node)) {
@@ -293,61 +309,201 @@ export const PostMenu: React.FC<PostMenuProps> = ({
         />
       )}
 
-      {/* Delete Confirmation Dialog */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-150"
-          onClick={() => setShowDeleteConfirm(false)}
-        >
+      {/* Full-Page Delete Screen */}
+      {showDeleteConfirm &&
+        createPortal(
           <div
-            className="w-full max-w-sm bg-[#0D1527] border border-[#1E293B] rounded-2xl shadow-2xl p-5 space-y-4 animate-in zoom-in-95 duration-150"
-            onClick={(e) => e.stopPropagation()}
+            id="delete-post-fullpage-panel"
+            className="fixed inset-0 z-[99999] bg-[#050B18] text-[#F8FAFC] flex flex-col w-full h-full overflow-hidden animate-in fade-in duration-150"
           >
-            <div className="flex items-center gap-3 text-rose-400">
-              <div className="w-10 h-10 rounded-full bg-rose-500/15 flex items-center justify-center">
-                <AlertCircle className="w-6 h-6" />
+            {/* Top Navigation Bar */}
+            <header className="h-16 px-4 sm:px-8 border-b border-[#1E293B] bg-[#0A0F1D]/95 backdrop-blur-md flex items-center justify-between shrink-0">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  id="delete-post-back-btn"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-semibold text-[#94A3B8] hover:text-white hover:bg-[#1E293B] transition-all"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Cancel</span>
+                </button>
               </div>
-              <h3 className="text-base font-bold text-[#F8FAFC]">
-                {isSong ? "Delete Song?" : isEvent ? "Delete Event?" : "Delete Post?"}
-              </h3>
-            </div>
 
-            <p className="text-xs text-[#94A3B8] leading-relaxed">
-              Are you sure you want to permanently delete this {isSong ? "song" : isEvent ? "event" : "post"}? This action cannot be undone.
-            </p>
+              <h1 className="text-base sm:text-lg font-bold text-[#F8FAFC] tracking-tight">
+                {isProduct
+                  ? "Delete Product"
+                  : isSong
+                  ? "Delete Song"
+                  : isStory
+                  ? "Delete Story"
+                  : isEvent
+                  ? "Delete Event"
+                  : "Delete Post"}
+              </h1>
 
-            <div className="flex items-center gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2 rounded-xl bg-[#1E293B] hover:bg-[#27354D] text-[#CBD5E1] text-xs font-bold transition"
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
+                id="delete-post-header-btn"
                 onClick={handleConfirmDelete}
                 disabled={isDeleting}
-                className={`flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all duration-200 shadow-lg shadow-rose-600/30 active:scale-95 ${
-                  isDeleting ? 'animate-pulse bg-rose-700 opacity-95 scale-[0.98]' : ''
-                }`}
+                className="flex items-center gap-2 px-5 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-lg shadow-rose-600/20 transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isDeleting ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin text-white" />
+                    <Loader2 className="w-4 h-4 animate-spin" />
                     <span>Deleting...</span>
                   </>
                 ) : (
                   <>
-                    <Trash2 className="w-4 h-4 transition-transform group-hover:scale-110" />
+                    <Trash2 className="w-4 h-4" />
                     <span>Delete</span>
                   </>
                 )}
               </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </header>
+
+            {/* Scrollable Content */}
+            <main className="flex-1 overflow-y-auto px-4 sm:px-8 py-8 max-w-2xl w-full mx-auto flex flex-col items-center justify-center space-y-6">
+              <div className="w-20 h-20 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-500 flex items-center justify-center shadow-2xl shadow-rose-500/10">
+                <Trash2 className="w-10 h-10 text-rose-500" />
+              </div>
+
+              <div className="text-center space-y-2 max-w-lg">
+                <h2 className="text-2xl sm:text-3xl font-black text-[#F8FAFC] tracking-tight">
+                  Permanently Delete this{" "}
+                  {isProduct
+                    ? "Product"
+                    : isSong
+                    ? "Song"
+                    : isStory
+                    ? "Story"
+                    : isEvent
+                    ? "Event"
+                    : "Post"}
+                  ?
+                </h2>
+                <p className="text-sm text-[#94A3B8] leading-relaxed">
+                  Are you sure you want to permanently delete this{" "}
+                  {isProduct
+                    ? "product"
+                    : isSong
+                    ? "song"
+                    : isStory
+                    ? "story"
+                    : isEvent
+                    ? "event"
+                    : "post"}
+                  ? This action is immediate and cannot be undone. All associated
+                  comments, reactions, and media will be wiped.
+                </p>
+              </div>
+
+              {/* Item Preview Card */}
+              <div className="w-full bg-[#0F172A] border border-[#1E293B] rounded-2xl p-4 sm:p-5 text-left space-y-3 shadow-xl">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={
+                      item.author?.profile_image_url ||
+                      item.user?.profile_image_url ||
+                      item.seller_avatar ||
+                      currentUser?.profile_image_url ||
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                        String(item.author?.name || item.user?.name || item.seller_name || currentUser?.name || "User")
+                      )}&background=1877F2&color=fff`
+                    }
+                    alt=""
+                    className="w-10 h-10 rounded-full object-cover border border-[#334155]"
+                  />
+                  <div>
+                    <div className="font-bold text-[#F8FAFC] text-sm leading-tight">
+                      {item.author?.name ||
+                        item.user?.name ||
+                        item.seller_name ||
+                        currentUser?.name ||
+                        "User"}
+                    </div>
+                    <div className="text-[11px] text-[#94A3B8]">
+                      {isProduct
+                        ? "MarketPoint Item"
+                        : isEvent
+                        ? "Event"
+                        : isSong
+                        ? "Song / Audio"
+                        : "Feed Post"}
+                    </div>
+                  </div>
+                </div>
+
+                {(item.title || item.song_name || item.name) && (
+                  <div className="font-bold text-[#F8FAFC] text-base leading-snug">
+                    {item.title || item.song_name || item.name}
+                  </div>
+                )}
+
+                {(item.content || item.caption || item.description || item.text) && (
+                  <p className="text-xs sm:text-sm text-[#CBD5E1] line-clamp-3 leading-relaxed">
+                    {item.content || item.caption || item.description || item.text}
+                  </p>
+                )}
+
+                {(item.media_url ||
+                  item.image_url ||
+                  item.cover_url ||
+                  (Array.isArray(item.images) && item.images[0]) ||
+                  (Array.isArray(item.media) &&
+                    (item.media[0]?.url || item.media[0]?.full || item.media[0]?.feed))) && (
+                  <div className="rounded-xl overflow-hidden max-h-52 w-full bg-black/40 border border-[#1E293B]">
+                    <img
+                      src={
+                        item.media_url ||
+                        item.image_url ||
+                        item.cover_url ||
+                        (Array.isArray(item.images) ? item.images[0] : null) ||
+                        (Array.isArray(item.media)
+                          ? item.media[0]?.url || item.media[0]?.full || item.media[0]?.feed
+                          : null)
+                      }
+                      alt="Preview"
+                      className="w-full h-52 object-cover"
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex flex-col sm:flex-row items-center gap-3 w-full pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={isDeleting}
+                  className="w-full sm:flex-1 py-3 px-6 rounded-xl bg-[#1E293B] hover:bg-[#27354D] text-[#CBD5E1] text-sm font-bold transition-all text-center"
+                >
+                  Cancel and Keep
+                </button>
+                <button
+                  type="button"
+                  onClick={handleConfirmDelete}
+                  disabled={isDeleting}
+                  className="w-full sm:flex-1 py-3 px-6 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-sm font-bold shadow-lg shadow-rose-600/25 transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50"
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-white" />
+                      <span>Deleting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="w-4 h-4" />
+                      <span>Delete Permanently</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </main>
+          </div>,
+          document.body
+        )}
     </>
   );
 };

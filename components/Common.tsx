@@ -1,5 +1,6 @@
 
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 
 export const Spinner = () => (
     <div className="flex justify-center p-8">
@@ -65,19 +66,45 @@ interface ImageViewerProps {
 
 export const ImageViewer: React.FC<ImageViewerProps> = ({ imageUrl, onClose }) => {
     useEffect(() => {
+        const prevOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
         const handleKeyDown = (e: KeyboardEvent) => {
             if (e.key === 'Escape') onClose();
         };
         window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
+        return () => {
+            document.body.style.overflow = prevOverflow;
+            window.removeEventListener('keydown', handleKeyDown);
+        };
     }, [onClose]);
 
-    return (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center animate-fade-in" onClick={onClose}>
-            <div className="absolute top-4 right-4 w-10 h-10 bg-[#1E293B] hover:bg-[#334155] rounded-full flex items-center justify-center cursor-pointer transition-colors z-50" onClick={onClose}>
-                <i className="fas fa-times text-[#F8FAFC] text-xl"></i>
-            </div>
-            <img src={imageUrl} alt="Full screen" className="max-w-full max-h-screen object-contain shadow-2xl cursor-default" onClick={(e) => e.stopPropagation()} />
-        </div>
+    if (!imageUrl) return null;
+
+    return createPortal(
+        <div 
+            id="full-screen-image-viewer"
+            className="fixed inset-0 z-[99999] bg-black/95 flex items-center justify-center animate-fade-in p-2 sm:p-4 select-none" 
+            onClick={onClose}
+        >
+            <button
+                type="button"
+                id="close-full-image-btn"
+                className="absolute top-4 right-4 w-11 h-11 bg-[#1E293B]/80 hover:bg-[#334155] border border-white/10 rounded-full flex items-center justify-center cursor-pointer transition-all shadow-xl z-[100000] text-white hover:scale-105 active:scale-95"
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onClose();
+                }}
+                aria-label="Close image preview"
+            >
+                <i className="fas fa-times text-white text-xl"></i>
+            </button>
+            <img 
+                src={imageUrl} 
+                alt="Full screen preview" 
+                className="max-w-full max-h-screen object-contain shadow-2xl cursor-default rounded-sm" 
+                onClick={(e) => e.stopPropagation()} 
+            />
+        </div>,
+        document.body
     );
 };
