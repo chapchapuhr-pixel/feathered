@@ -1,5 +1,6 @@
 // AllEvents.tsx
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { User } from "../types";
 import { PostUploadProgressBanner, PostUploadState } from "./PostUploadProgress";
 import { PostMenu } from "./Post/PostMenu";
@@ -704,12 +705,28 @@ const EventCard: React.FC<{
     }
   };
 
+  useEffect(() => {
+    if (!isPreview) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onEventClick(0);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [isPreview, onEventClick]);
+
   if (isPreview) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-[#050B18] overflow-y-auto">
+    return createPortal(
+      <div className="fixed inset-0 z-[99999] bg-[#050B18] overflow-y-auto animate-in fade-in duration-150">
         <button
+          type="button"
           onClick={() => onEventClick(0)}
-          className="fixed top-4 right-4 z-10 w-10 h-10 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center hover:bg-black/70 transition-colors"
+          className="fixed top-4 right-4 z-30 w-10 h-10 rounded-full bg-black/60 hover:bg-black/80 backdrop-blur-sm flex items-center justify-center text-white transition-colors cursor-pointer border border-white/10"
+          aria-label="Close"
         >
           <i className="fas fa-times text-white text-xl"></i>
         </button>
@@ -843,7 +860,8 @@ const EventCard: React.FC<{
             )}
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
     );
   }
 

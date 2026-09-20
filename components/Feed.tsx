@@ -25,7 +25,7 @@ import { useLanguage } from '../contexts/LanguageContext';
 import { LOCATIONS_DATA, MARKETPLACE_COUNTRIES } from '../constants';
 import { MarketplaceContext } from '../App';
 import { CreateEventModal } from './Events';
-import { EventDetailsModal } from './EventsPage';
+import { EventCard } from './AllEvents';
 import { performPostAction } from '../postActionRegistry';
 import { PostMenu } from './Post/PostMenu';
 import { buildImageUploadBundle } from '../utils/imageCompression';
@@ -1634,34 +1634,29 @@ export const GalleryViewer = memo(
   }) => {
     const scrollerRef = useRef<HTMLDivElement>(null);
     const [currentIndex, setCurrentIndex] = useState(startIndex);
-
-    const goToIndex = (idx: number) => {
-      const nextIdx = Math.max(0, Math.min(urls.length - 1, idx));
-      const el = scrollerRef.current;
-      if (!el) return;
-      const w = el.clientWidth || window.innerWidth;
-      el.scrollTo({ left: nextIdx * w, behavior: 'smooth' });
-      setCurrentIndex(nextIdx);
-    };
+    const hasInitialScrolledRef = useRef(false);
 
     useEffect(() => {
-      if (!isOpen) return;
+      if (!isOpen) {
+        hasInitialScrolledRef.current = false;
+        return;
+      }
       const prevOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       setCurrentIndex(startIndex);
 
       const handleKeyDown = (e: KeyboardEvent) => {
         if (e.key === 'Escape') onClose();
-        if (e.key === 'ArrowLeft') goToIndex(currentIndex - 1);
-        if (e.key === 'ArrowRight') goToIndex(currentIndex + 1);
       };
       window.addEventListener('keydown', handleKeyDown);
 
+      // Perform initial scroll to clicked startIndex once
       const timer = setTimeout(() => {
         const el = scrollerRef.current;
         if (!el) return;
         const w = el.clientWidth || window.innerWidth;
         el.scrollTo({ left: startIndex * w, behavior: 'instant' as any });
+        hasInitialScrolledRef.current = true;
       }, 30);
 
       return () => {
@@ -1669,7 +1664,7 @@ export const GalleryViewer = memo(
         document.body.style.overflow = prevOverflow;
         window.removeEventListener('keydown', handleKeyDown);
       };
-    }, [isOpen, startIndex, onClose, currentIndex, urls.length]);
+    }, [isOpen, startIndex, onClose]);
 
     const handleScroll = () => {
       const el = scrollerRef.current;
@@ -1721,52 +1716,28 @@ export const GalleryViewer = memo(
           </button>
         </header>
 
-        {/* Scrollable Images Container - Solid Opaque */}
-        <div className="relative flex-1 w-full overflow-hidden flex items-center justify-center bg-[#050B18]">
-          {urls.length > 1 && currentIndex > 0 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                goToIndex(currentIndex - 1);
-              }}
-              className="absolute left-3 sm:left-5 z-20 w-10 h-10 rounded-full bg-[#0B1120] hover:bg-[#1E293B] border border-[#1E293B] text-white flex items-center justify-center shadow-2xl transition-transform active:scale-95 cursor-pointer"
-              aria-label="Previous image"
-            >
-              <i className="fas fa-chevron-left text-base"></i>
-            </button>
-          )}
-
-          {urls.length > 1 && currentIndex < urls.length - 1 && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                goToIndex(currentIndex + 1);
-              }}
-              className="absolute right-3 sm:right-5 z-20 w-10 h-10 rounded-full bg-[#0B1120] hover:bg-[#1E293B] border border-[#1E293B] text-white flex items-center justify-center shadow-2xl transition-transform active:scale-95 cursor-pointer"
-              aria-label="Next image"
-            >
-              <i className="fas fa-chevron-right text-base"></i>
-            </button>
-          )}
-
+        {/* Scrollable Images Container - Full width, 0px left/right gap, no prev/next buttons */}
+        <div className="relative flex-1 w-full overflow-hidden flex items-center justify-center bg-[#050B18] p-0 m-0">
           <div
             ref={scrollerRef}
-            className="w-full h-full overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth"
-            style={{ WebkitOverflowScrolling: 'touch' }}
+            className="w-full h-full overflow-x-auto overflow-y-hidden flex snap-x snap-mandatory scroll-smooth p-0 m-0"
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+            }}
             onClick={(e) => e.stopPropagation()}
             onScroll={handleScroll}
           >
             {urls.map((url, i) => (
               <div
                 key={url + i}
-                className="min-w-full h-full snap-center flex items-center justify-center bg-[#050B18] p-2"
+                className="min-w-full w-full h-full snap-center shrink-0 flex items-center justify-center bg-[#050B18] p-0 m-0 overflow-hidden"
               >
                 <img
                   src={url}
                   alt=""
-                  className="max-w-full max-h-full object-contain select-none"
+                  className="w-full max-h-full object-contain select-none block p-0 m-0"
                   draggable={false}
                   onClick={(e) => e.stopPropagation()}
                 />
@@ -4994,7 +4965,6 @@ export const EventPost = memo(
 
     const handleCardClick = (e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
-      if (onEventClick && event.id) onEventClick(event.id);
       setShowEventPreviewModal(true);
     };
 
@@ -5351,20 +5321,39 @@ export const EventPost = memo(
         )}
 
         {showEventPreviewModal && (
-          <EventDetailsModal
+          <EventCard
             event={{
-              ...event,
-              image: event.cover_url || event.image || event.media_url,
-              time: event.time || (event.event_date ? new Date(event.event_date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'TBD'),
+              id: Number(event.id || event.event_id || 0),
+              creator_id: Number(event.creator_id || event.user_id || safeUserId(creator) || 0),
+              title: event.title || event.content || 'Event',
+              description: event.description || event.event_description || '',
+              event_date: event.event_date || event.date || '',
+              location: event.location || '',
+              cover_url: event.cover_url || event.image || event.media_url || '',
+              visibility: (event.visibility as any) || 'worldwide',
+              created_at: event.created_at || new Date().toISOString(),
               attendees_count: attendeesCount,
               interested_count: interestedCount,
-              user_rsvp_status: rsvpStatus,
+              user_rsvp_status: (rsvpStatus as any) || '',
+              creator: creator ? {
+                id: Number(creator.id || 0),
+                name: creator.name || creator.username || 'Event Organizer',
+                username: creator.username || '',
+                profile_image_url: creator.profile_image_url || null,
+              } : undefined,
             }}
             currentUser={currentUser}
-            onClose={() => setShowEventPreviewModal(false)}
-            onJoin={() => handleRSVPClick('going')}
-            onInterested={() => handleRSVPClick('interested')}
+            onEventClick={() => setShowEventPreviewModal(false)}
             onProfileClick={onProfileClick}
+            onRSVPUpdate={(_eventId, newStatus, newAtt, newInt) => {
+              setRsvpStatus(newStatus);
+              setAttendeesCount(newAtt);
+              setInterestedCount(newInt);
+              if (onRSVP) {
+                onRSVP(Number(event.id || event.event_id), (newStatus || 'not_going') as any);
+              }
+            }}
+            isPreview={true}
           />
         )}
 
@@ -5532,10 +5521,6 @@ export const EventFeedCard = memo(
 
     const handleCardClick = (e?: React.MouseEvent) => {
       if (e) e.stopPropagation();
-      if (onEventClick) {
-        const eventId = item.event_id || item.id;
-        onEventClick(eventId);
-      }
       setShowEventPreviewModal(true);
     };
 
@@ -5712,28 +5697,39 @@ export const EventFeedCard = memo(
         <div className="h-[10px] bg-[#050B18] border-t border-white/10" />
 
         {showEventPreviewModal && (
-          <EventDetailsModal
+          <EventCard
             event={{
-              id: item.event_id || item.id,
-              title: item.content,
-              description: item.event_description,
-              image: item.image_url || item.cover_url || item.media_url,
-              cover_url: item.image_url || item.cover_url || item.media_url,
-              location: item.location,
-              date: item.event_date,
-              event_date: item.event_date,
-              time: whenText || 'TBD',
+              id: Number(item.event_id || item.id || 0),
+              creator_id: Number((item as any).creator_id || item.user_id || 0),
+              title: (item as any).title || item.content || 'Event',
+              description: (item as any).description || item.event_description || '',
+              event_date: item.event_date || '',
+              location: item.location || '',
+              cover_url: item.image_url || (item as any).cover_url || item.media_url || '',
+              visibility: 'worldwide',
+              created_at: item.created_at || new Date().toISOString(),
               attendees_count: attending,
               interested_count: interested,
-              user_rsvp_status: my,
-              my_rsvp_status: my,
-              visibility: 'Worldwide',
+              user_rsvp_status: (my as any) || '',
+              creator: {
+                id: Number(item.user_id || 0),
+                name: item.name || 'Event Organizer',
+                username: '',
+                profile_image_url: item.profile_image_url || null,
+              },
             }}
             currentUser={currentUser as any}
-            onClose={() => setShowEventPreviewModal(false)}
-            onJoin={() => rsvp('going')}
-            onInterested={() => rsvp('interested')}
+            onEventClick={() => setShowEventPreviewModal(false)}
             onProfileClick={onProfileClick}
+            onRSVPUpdate={(_eventId, newStatus, newAtt, newInt) => {
+              onUpdateItem({
+                my_rsvp_status: (newStatus || '') as any,
+                attending_count: newAtt,
+                interested_count: newInt,
+              });
+              rsvp((newStatus || 'not_going') as any);
+            }}
+            isPreview={true}
           />
         )}
       </div>
